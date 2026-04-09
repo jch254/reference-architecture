@@ -538,6 +538,13 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:shared/github-token-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/reference-architecture/*"
       }
     ]
   })
@@ -588,6 +595,16 @@ resource "aws_codebuild_project" "main" {
     environment_variable {
       name  = "SERVICE_NAME"
       value = aws_ecs_service.main.name
+    }
+
+    environment_variable {
+      name  = "CLOUDFLARE_DOMAIN"
+      value = var.cloudflare_domain
+    }
+
+    environment_variable {
+      name  = "CLOUDFLARE_SUBDOMAIN"
+      value = var.cloudflare_subdomain
     }
   }
 

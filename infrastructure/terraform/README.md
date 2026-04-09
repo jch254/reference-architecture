@@ -12,7 +12,7 @@ Terraform configuration for deploying the reference architecture.
 - IAM roles (ECS execution, ECS task, CodeBuild)
 - CloudWatch log group
 
-Optional: `cloudflare/` manages DNS records pointing to the API Gateway.
+`cloudflare/` manages DNS — CNAME pointing to the API Gateway default URL.
 
 ## Prerequisites
 
@@ -38,17 +38,25 @@ terraform apply -var-file=environments/prod/terraform.tfvars
 
 3. After initial deploy, CodeBuild handles all subsequent deployments automatically on push to `main`.
 
-## Local deploy
+## Cloudflare DNS
+
+Managed in `cloudflare/`. Initial apply is manual; subsequent applies run automatically via CodeBuild.
+
+For initial setup:
 
 ```bash
-export AWS_DEFAULT_REGION="ap-southeast-4"
-export REMOTE_STATE_BUCKET="jch254-terraform-remote-state"
-export IMAGE_TAG="latest"
-./infrastructure/terraform/deploy-infrastructure.bash
+cd infrastructure/terraform/cloudflare
+
+terraform init \
+  -backend-config "bucket=<state-bucket>" \
+  -backend-config "key=reference-architecture-cloudflare" \
+  -backend-config "region=<region>"
+
+terraform apply
 ```
 
-Requires valid AWS credentials. Run from the repo root.
+Requires `cloudflare_api_token`, `domain`, `subdomain`, `aws_region`, `aws_state_bucket`, and `aws_state_key`.
 
 ## Pipeline flow
 
-`buildspec.yml` → install → build → Docker build + push to ECR → `deploy-infrastructure.bash` → Terraform plan/apply → ECS wait for stable.
+`buildspec.yml` → build → Docker push to ECR → Terraform plan/apply → ECS stabilise → Cloudflare Terraform plan/apply.

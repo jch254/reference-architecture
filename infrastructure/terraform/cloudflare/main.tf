@@ -22,9 +22,9 @@ data "cloudflare_zone" "zone" {
   }
 }
 
-resource "cloudflare_dns_record" "apex" {
+resource "cloudflare_dns_record" "main" {
   content = replace(data.terraform_remote_state.aws.outputs.api_gateway_url, "https://", "")
-  name    = var.domain
+  name    = var.subdomain
   proxied = true
   ttl     = 1
   type    = "CNAME"

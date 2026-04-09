@@ -7,3 +7,6 @@ build_docker_image = "jch254/docker-node-terraform-aws"
 build_docker_tag   = "22.x-docker"
 source_location    = "https://github.com/jch254/reference-architecture.git"
 cache_bucket       = "jch254-codebuild-cache/reference-architecture"
+
+cloudflare_domain    = "603.nz"
+cloudflare_subdomain = "reference-architecture"

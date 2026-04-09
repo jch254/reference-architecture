@@ -74,3 +74,13 @@ variable "container_memory" {
   type        = number
   default     = 512
 }
+
+variable "cloudflare_domain" {
+  description = "Cloudflare zone name (e.g. 603.nz)"
+  type        = string
+}
+
+variable "cloudflare_subdomain" {
+  description = "Subdomain for the application (e.g. reference-architecture)"
+  type        = string
+}

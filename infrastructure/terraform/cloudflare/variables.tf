@@ -23,3 +23,8 @@ variable "aws_state_key" {
   description = "S3 key for AWS infrastructure remote state"
   type        = string
 }
+
+variable "subdomain" {
+  description = "Subdomain to create under the zone (e.g. reference-architecture)"
+  type        = string
+}

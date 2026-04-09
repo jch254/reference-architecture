@@ -2,20 +2,19 @@
 
 Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. No domain logic. No async/background systems.
 
-## Structure
+## Architecture
 
 ```
 /src                        → application (NestJS)
 Dockerfile                  → runtime
 buildspec.yml               → CI/CD (CodeBuild)
 /infrastructure/terraform   → deployment (Terraform)
-/infrastructure/terraform/cloudflare → DNS (Cloudflare, optional)
 ```
 
 ## Principles
 
 - stateless API
-- tenant-aware (subdomain resolution)
+- tenant-aware (subdomain-based)
 - minimal and explicit
 - no overengineering
 
@@ -27,7 +26,6 @@ buildspec.yml               → CI/CD (CodeBuild)
 ## Running locally
 
 ```bash
-cp .env.example .env
 pnpm install
 pnpm run build
 pnpm run start:prod
@@ -42,9 +40,7 @@ docker run -p 3000:3000 ref-arch
 
 ## Deployment
 
-Push to `main` → CodeBuild builds + pushes Docker image to ECR → Terraform apply → ECS service stabilises.
-
-See [infrastructure/terraform/](infrastructure/terraform/) for setup.
+Push to `main` → CodeBuild → Docker image to ECR → Terraform apply → ECS Fargate → Cloudflare DNS.
 
 ## Usage
 

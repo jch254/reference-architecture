@@ -3,16 +3,33 @@ version: 0.2
 env:
   variables:
     REMOTE_STATE_BUCKET: "jch254-terraform-remote-state"
+  parameter-store:
+    CLOUDFLARE_API_TOKEN: "/reference-architecture/cloudflare-api-token"
 
 phases:
   install:
     commands:
-      - nohup dockerd --host=unix:///var/run/docker.sock --storage-driver=overlay2 &
-      - timeout 15 sh -c "until docker info 2>/dev/null; do echo 'Waiting for Docker daemon...'; sleep 1; done"
+      - |
+        dockerd \
+          --host=unix:///var/run/docker.sock \
+          --storage-driver=vfs \
+          --data-root=/tmp/docker \
+          > /tmp/dockerd.log 2>&1 &
+      - |
+        for i in $(seq 1 20); do
+          if docker info > /dev/null 2>&1; then
+            echo "Docker is ready"
+            break
+          fi
+          echo "Waiting for Docker ($i)..."
+          sleep 2
+        done
+      - docker info || (echo "Docker failed to start" && cat /tmp/dockerd.log && exit 1)
       - npm install -g pnpm
       - pnpm install --frozen-lockfile
       - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:8}
       - chmod +x infrastructure/terraform/deploy-infrastructure.bash
+      - chmod +x infrastructure/terraform/cloudflare/deploy-cloudflare.bash
 
   pre_build:
     commands:
@@ -35,6 +52,8 @@ phases:
       - ./infrastructure/terraform/deploy-infrastructure.bash
       - echo Waiting for ECS service to stabilise...
       - aws ecs wait services-stable --cluster $CLUSTER_NAME --services $SERVICE_NAME
+      - echo AWS deployment completed
+      - ./infrastructure/terraform/cloudflare/deploy-cloudflare.bash
       - echo Deployment completed
 
 cache:
