@@ -4,3 +4,4 @@ node_modules
 dist/
 .ds_store
 .env
+.env.*
