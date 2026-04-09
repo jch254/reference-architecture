@@ -1,13 +1,14 @@
 # Reference Architecture
 
-Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild. No domain logic. No async/background systems.
+Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. No domain logic. No async/background systems.
 
 ## Structure
 
 ```
-/src              → application (NestJS)
-Dockerfile        → runtime
-buildspec.yml     → CI/CD
+/src                        → application (NestJS)
+Dockerfile                  → runtime
+buildspec.yml               → CI/CD (CodeBuild)
+/infrastructure/terraform   → deployment (Terraform)
 ```
 
 ## Principles
@@ -33,7 +34,9 @@ pnpm run start:prod
 
 ## Deployment
 
-Docker build → push to ECR → deploy via CodeBuild. Add `/infrastructure` (Terraform/IaC) per target environment.
+Push to `main` → CodeBuild builds + pushes Docker image to ECR → Terraform apply → ECS service stabilises.
+
+See [infrastructure/terraform/](infrastructure/terraform/) for setup.
 
 ## Usage
 

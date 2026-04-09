@@ -5,3 +5,6 @@ dist/
 .ds_store
 .env
 !.env.example
+.terraform
+.terraform.tfstate
+.terraform.lock.hcl
