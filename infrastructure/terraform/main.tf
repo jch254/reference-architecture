@@ -8,50 +8,16 @@ data "aws_vpc" "existing" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
-data "aws_internet_gateway" "existing" {
+data "aws_subnets" "public" {
   filter {
-    name   = "attachment.vpc-id"
+    name   = "vpc-id"
     values = [var.vpc_id]
   }
-}
 
-# Public subnets for ECS tasks and API Gateway VPC Link
-resource "aws_subnet" "public" {
-  count             = 2
-  vpc_id            = data.aws_vpc.existing.id
-  cidr_block        = cidrsubnet(data.aws_vpc.existing.cidr_block, 8, count.index + 100)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name        = "${var.name}-public-subnet-${count.index + 1}"
-    Environment = var.environment
+  filter {
+    name   = "map-public-ip-on-launch"
+    values = ["true"]
   }
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = data.aws_vpc.existing.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = data.aws_internet_gateway.existing.id
-  }
-
-  tags = {
-    Name        = "${var.name}-public-rt"
-    Environment = var.environment
-  }
-}
-
-resource "aws_route_table_association" "public" {
-  count          = length(aws_subnet.public)
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
 }
 
 # ECR Repository
@@ -162,7 +128,7 @@ resource "aws_apigatewayv2_api" "main" {
 resource "aws_apigatewayv2_vpc_link" "main" {
   name               = "${var.name}-vpc-link"
   security_group_ids = [aws_security_group.vpc_link.id]
-  subnet_ids         = aws_subnet.public[*].id
+  subnet_ids         = data.aws_subnets.public.ids
 
   tags = {
     Name        = "${var.name}-vpc-link"
@@ -282,7 +248,7 @@ resource "aws_ecs_service" "main" {
 
   network_configuration {
     security_groups  = [aws_security_group.ecs.id]
-    subnets          = aws_subnet.public[*].id
+    subnets          = data.aws_subnets.public.ids
     assign_public_ip = true
   }
 
@@ -452,6 +418,13 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "s3:GetBucketLocation"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:shared/github-token-*"
       }
     ]
   })

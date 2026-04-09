@@ -8,3 +8,4 @@ dist/
 .terraform
 .terraform.tfstate
 .terraform.lock.hcl
+*.tfplan

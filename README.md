@@ -9,6 +9,7 @@ Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + Cod
 Dockerfile                  → runtime
 buildspec.yml               → CI/CD (CodeBuild)
 /infrastructure/terraform   → deployment (Terraform)
+/infrastructure/terraform/cloudflare → DNS (Cloudflare, optional)
 ```
 
 ## Principles
