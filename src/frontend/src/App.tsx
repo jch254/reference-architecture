@@ -5,6 +5,7 @@ interface Example {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 const tenant = window.location.hostname.split('.')[0];
