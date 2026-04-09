@@ -1,40 +1,46 @@
-## What this is
+# Reference Architecture
 
-A minimal, production-ready backend reference architecture.
+Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild. No domain logic. No async/background systems.
 
-Built with:
+## Structure
 
-- NestJS
-- DynamoDB (single-table mindset)
-- Docker + CodeBuild compatible runtime
+```
+/src              → application (NestJS)
+Dockerfile        → runtime
+buildspec.yml     → CI/CD
+```
 
 ## Principles
 
 - stateless API
-- no domain logic
-- no async/background systems
-- minimal, explicit structure
+- tenant-aware (subdomain resolution)
+- minimal and explicit
+- no overengineering
 
 ## Endpoints
 
-- GET /health
-- GET /example
+- `GET /health` → `{ status, timestamp }`
+- `GET /example` → `{ message, requestId, tenantId }`
 
-## Goal
+## Running locally
 
-Provide a clean foundation for building new systems without inheriting legacy complexity.
+```bash
+cp .env.example .env
+pnpm install
+pnpm run build
+pnpm run start:prod
+```
+
+## Deployment
+
+Docker build → push to ECR → deploy via CodeBuild. Add `/infrastructure` (Terraform/IaC) per target environment.
 
 ## Usage
 
-This repository is used as a reference architecture when generating new applications.
+Used as a reference architecture for generating new applications.
 
-Typical workflow:
-
-1. Copy this repository as `/example-project`
-2. Use it as architectural context for LLM-assisted generation
-3. Generate a new application in a separate repository
-4. Evolve the new application independently
-
-Principle:
+1. Copy as `/example-project` in a new repository
+2. Use as architectural context for building domain-specific systems
+3. Evolve independently
 
 Reuse structure, not implementation.

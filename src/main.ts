@@ -15,7 +15,7 @@ async function bootstrap(): Promise<void> {
   app.set('trust proxy', 1);
   app.enableCors();
 
-  await app.listen(config.port);
+  await app.listen(config.port, '0.0.0.0');
   logger.log(`Application listening on port ${config.port}`);
 }
 

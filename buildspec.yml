@@ -1,0 +1,15 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22.x
+    commands:
+      - npm install -g pnpm
+      - pnpm install --frozen-lockfile
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - pnpm run build
+      - echo Build completed on `date`
