@@ -18,7 +18,7 @@ import { ExampleModule } from './modules/example/example.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestContextMiddleware).forRoutes('*');
-    consumer.apply(TenantMiddleware).exclude('api/health').forRoutes('*');
+    consumer.apply(RequestContextMiddleware).forRoutes('{*path}');
+    consumer.apply(TenantMiddleware).exclude('api/health').forRoutes('{*path}');
   }
 }

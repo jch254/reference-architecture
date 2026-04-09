@@ -54,9 +54,10 @@ pnpm run start:prod
 With Docker:
 
 ```bash
-docker build -t reference-architecture .
-docker run -p 3000:3000 reference-architecture
+docker compose up --build
 ```
+
+This starts the app, DynamoDB Local, and creates the table automatically.
 
 ## Deployment
 

@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 public.ecr.aws/docker/library/node:24-alpine AS builder
+FROM public.ecr.aws/docker/library/node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN pnpm install --frozen-lockfile
 
 RUN pnpm run build
 
-FROM --platform=linux/amd64 public.ecr.aws/docker/library/node:24-alpine AS production
+FROM public.ecr.aws/docker/library/node:24-alpine AS production
 
 WORKDIR /app
 
