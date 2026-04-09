@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
+import { AnalyticsService } from '../../common/analytics/analytics.service';
 import { config } from '../../common/config';
 import {
   BaseEntity,
@@ -18,7 +19,10 @@ export class ExampleService {
   private readonly logger = new Logger(ExampleService.name);
   private readonly tableName = config.dynamoDbTable;
 
-  constructor(private readonly dynamoDb: DynamoDbService) {}
+  constructor(
+    private readonly dynamoDb: DynamoDbService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   getHealth(): { status: string; timestamp: number } {
     return {
@@ -47,12 +51,16 @@ export class ExampleService {
     await this.dynamoDb.putItem(this.tableName, item);
     this.logger.log(`Created example ${entityId} for tenant ${tenantId}`);
 
+    await this.analytics.track('example_created', {
+      entityType: 'example',
+    });
+
     return item;
   }
 
   async listExamples(tenantSlug: string): Promise<ExampleEntity[]> {
     const tenantId = tenantSlug;
-    return this.dynamoDb.query<ExampleEntity>(
+    const items = await this.dynamoDb.query<ExampleEntity>(
       this.tableName,
       'PK = :pk AND begins_with(SK, :skPrefix)',
       {
@@ -60,5 +68,11 @@ export class ExampleService {
         ':skPrefix': SKPrefix.EXAMPLE,
       },
     );
+
+    await this.analytics.track('example_listed', {
+      entityType: 'example',
+    });
+
+    return items;
   }
 }
