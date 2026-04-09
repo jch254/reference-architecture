@@ -84,3 +84,8 @@ variable "cloudflare_subdomain" {
   description = "Subdomain for the application (e.g. reference-architecture)"
   type        = string
 }
+
+variable "dns_name" {
+  description = "Full domain name for the application (e.g. reference-architecture.603.nz)"
+  type        = string
+}

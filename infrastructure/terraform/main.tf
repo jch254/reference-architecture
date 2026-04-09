@@ -162,6 +162,46 @@ resource "aws_apigatewayv2_stage" "main" {
   }
 }
 
+# ACM Certificate for API Gateway custom domain
+resource "aws_acm_certificate" "main" {
+  domain_name       = var.dns_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name        = "${var.name}-certificate"
+    Environment = var.environment
+  }
+}
+
+# Note: Certificate validation is handled manually via Cloudflare DNS
+
+# API Gateway Custom Domain
+resource "aws_apigatewayv2_domain_name" "main" {
+  domain_name = var.dns_name
+
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate.main.arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+
+  tags = {
+    Name        = "${var.name}-api-domain"
+    Environment = var.environment
+  }
+}
+
+# API Gateway Domain Mapping
+resource "aws_apigatewayv2_api_mapping" "main" {
+  api_id      = aws_apigatewayv2_api.main.id
+  domain_name = aws_apigatewayv2_domain_name.main.id
+  stage       = aws_apigatewayv2_stage.main.id
+}
+
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.name}-cluster"
@@ -220,6 +260,14 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
 
+      healthCheck = {
+        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+        interval    = 15
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
+
       essential = true
     }
   ])
@@ -240,6 +288,10 @@ resource "aws_ecs_service" "main" {
 
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
+
+  # Wait for the new task to pass container health checks before the scheduler
+  # considers it healthy — prevents draining the old task too early.
+  health_check_grace_period_seconds = 60
 
   deployment_circuit_breaker {
     enable   = true
