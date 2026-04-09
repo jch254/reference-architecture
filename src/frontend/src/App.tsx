@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
+import './App.css';
 
 interface Example {
   id: string;
@@ -66,87 +67,68 @@ export function App() {
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 20px', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Reference Architecture Demo</h1>
+    <div className="app-container">
+      <h1 className="app-title">Reference Architecture Demo</h1>
 
-      <p style={{ color: '#666' }}>
-        Tenant: <strong>{tenant}</strong>
-      </p>
+      <div className="tenant">
+        Tenant <span className="tenant-value">{tenant}</span>
+      </div>
 
-      <hr />
+      <hr className="section-divider" />
 
-      <h2>Create Example</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
-          style={{ flex: 1, padding: '8px 12px', fontSize: 14 }}
-        />
-        <button type="submit" disabled={loading} style={{ padding: '8px 16px', fontSize: 14 }}>
-          {loading ? 'Creating...' : 'Create'}
-        </button>
-      </form>
+      <section className="section">
+        <h2 className="section-header">Create Example</h2>
+        <form onSubmit={handleSubmit} className="create-form">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+            className="create-input"
+          />
+          <button type="submit" disabled={loading} className="btn btn-primary">
+            {loading ? 'Creating…' : 'Create'}
+          </button>
+        </form>
+        {error && <p className="error-message">{error}</p>}
+      </section>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <hr className="section-divider" />
 
-      <hr />
-
-      <h2>Examples</h2>
-      {examples.length === 0 ? (
-        <p style={{ color: '#999' }}>No examples yet.</p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={th}>ID</th>
-              <th style={th}>Name</th>
-              <th style={th}>Created At</th>
-              <th style={th}></th>
-            </tr>
-          </thead>
-          <tbody>
+      <section className="section">
+        <h2 className="section-header">Examples</h2>
+        {examples.length === 0 ? (
+          <p className="empty-state">No examples yet.</p>
+        ) : (
+          <div className="example-list">
+            <div className="example-header">
+              <span>ID</span>
+              <span>Name</span>
+              <span>Created</span>
+              <span></span>
+            </div>
             {examples.map((ex) => (
-              <tr key={ex.id}>
-                <td style={td}>{ex.id}</td>
-                <td style={td}>{ex.name}</td>
-                <td style={td}>{ex.createdAt}</td>
-                <td style={td}>
-                  <button
-                    onClick={() => handleDelete(ex.id)}
-                    style={{ fontSize: 12, cursor: 'pointer', color: '#c00', background: 'none', border: 'none', padding: '2px 6px' }}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+              <div className="example-row" key={ex.id}>
+                <span className="example-cell example-cell-id">{ex.id}</span>
+                <span className="example-cell">{ex.name}</span>
+                <span className="example-cell">{ex.createdAt}</span>
+                <button className="btn-delete" onClick={() => handleDelete(ex.id)}>
+                  Delete
+                </button>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+          </div>
+        )}
+      </section>
 
-      <hr />
+      <hr className="section-divider" />
 
-      <button onClick={() => setShowRaw(!showRaw)} style={{ fontSize: 13, cursor: 'pointer' }}>
-        {showRaw ? 'Hide' : 'Show'} Raw Response
-      </button>
-      {showRaw && (
-        <pre style={{ background: '#f5f5f5', padding: 12, overflow: 'auto', fontSize: 12 }}>
-          {rawResponse}
-        </pre>
-      )}
+      <div className="raw-toggle">
+        <button onClick={() => setShowRaw(!showRaw)} className="btn btn-ghost">
+          {showRaw ? 'Hide' : 'Show'} Raw Response
+        </button>
+        {showRaw && <pre className="raw-block">{rawResponse}</pre>}
+      </div>
     </div>
   );
 }
-
-const th: React.CSSProperties = {
-  textAlign: 'left',
-  borderBottom: '2px solid #ddd',
-  padding: '8px 4px',
-};
-
-const td: React.CSSProperties = {
-  borderBottom: '1px solid #eee',
-  padding: '8px 4px',
-};

@@ -1,0 +1,255 @@
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Spacing scale ── */
+:root {
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 28px;
+  --space-2xl: 40px;
+
+  --color-text: #111;
+  --color-muted: #666;
+  --color-faint: #999;
+  --color-border: #e0e0e0;
+  --color-bg-subtle: #f7f7f7;
+  --color-bg: #fff;
+  --color-accent: #111;
+  --color-accent-hover: #333;
+  --color-error: #c00;
+
+  --radius: 6px;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.app-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+/* ── Title ── */
+.app-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-sm);
+}
+
+/* ── Tenant badge ── */
+.tenant {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.813rem;
+  color: var(--color-muted);
+  margin-bottom: var(--space-xl);
+}
+
+.tenant-value {
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg-subtle);
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+/* ── Sections ── */
+.section {
+  margin-bottom: var(--space-lg);
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-lg) 0;
+}
+
+.section-header {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  margin-bottom: var(--space-md);
+}
+
+/* ── Form ── */
+.create-form {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.create-input {
+  flex: 1;
+  padding: var(--space-sm) 12px;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.create-input::placeholder {
+  color: var(--color-faint);
+}
+
+.create-input:focus {
+  border-color: var(--color-accent);
+}
+
+.btn {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.btn-ghost {
+  background: none;
+  color: var(--color-muted);
+  padding: var(--space-xs) 0;
+  font-size: 0.813rem;
+}
+
+.btn-ghost:hover {
+  color: var(--color-text);
+}
+
+/* ── Error ── */
+.error-message {
+  color: var(--color-error);
+  font-size: 0.813rem;
+  margin-top: var(--space-sm);
+}
+
+/* ── Example list ── */
+.empty-state {
+  color: var(--color-faint);
+  font-size: 0.875rem;
+}
+
+.example-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.example-header,
+.example-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 48px;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-xs);
+  align-items: center;
+}
+
+.example-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-faint);
+  border-bottom: 1px solid var(--color-text);
+  padding-bottom: var(--space-sm);
+}
+
+.example-row {
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.1s ease;
+}
+
+.example-row:hover {
+  background-color: #fafafa;
+}
+
+.example-row:last-child {
+  border-bottom: none;
+}
+
+.example-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.example-cell-id {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--color-faint);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: var(--space-xs);
+  border-radius: var(--radius);
+  transition: color 0.15s ease;
+  text-align: right;
+}
+
+.btn-delete:hover {
+  color: var(--color-text);
+}
+
+/* ── Raw JSON ── */
+.raw-toggle {
+  margin-top: var(--space-sm);
+}
+
+.raw-block {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-muted);
+}

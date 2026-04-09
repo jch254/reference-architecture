@@ -1,6 +1,8 @@
 # Reference Architecture
 
-Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. Multi-tenant data layer. Append-only analytics. No domain logic. No async/background systems.
+Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. Multi-tenant data layer. Append-only analytics. React demo UI (same container). No domain logic. No async/background systems.
+
+**Live:** [reference-architecture.603.nz](https://reference-architecture.603.nz)
 
 ## Architecture
 
@@ -29,7 +31,7 @@ buildspec.yml               → CI/CD (CodeBuild)
 
 ## Deployment
 
-Docker + CodeBuild + Terraform. Cloudflare for DNS. System validation runs post-deploy.
+Docker + CodeBuild + Terraform. Cloudflare for DNS.
 
 See [infrastructure/README.md](infrastructure/README.md) for details.
 

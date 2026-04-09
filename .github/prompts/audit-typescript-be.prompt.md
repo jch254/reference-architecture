@@ -8,10 +8,11 @@ You are a senior engineer performing a backend TypeScript audit.
 Architecture:
 
 - NestJS with controller → service → repository layering
-- DynamoDB persistence via a shared service
+- DynamoDB persistence via a shared service (flat, no abstraction layers)
 - Request-scoped context (requestId, tenantId via middleware)
 - Subdomain-based tenant resolution
 - Stateless API (no session coupling)
+- Minimal architecture (no DTO frameworks, no validation libraries, no async pipelines)
 
 Goal: simplify the codebase, remove dead code, reduce risk, and preserve behaviour.
 
@@ -20,7 +21,9 @@ Rules:
 - Prefer removing code over adding code
 - Do NOT break existing behaviour
 - Do NOT introduce new dependencies
+- Do NOT introduce DTO frameworks, validation libraries, or abstraction layers
 - Do NOT re-architect unless duplication is exact and harmful
+- Preserve API response shapes exactly (no contract changes)
 
 ---
 
@@ -42,6 +45,7 @@ Check controller → service → repository layering:
 
 - controllers should only handle HTTP concerns (params, request, response)
 - services should contain logic, not HTTP details
+- repository/Dynamo access must remain isolated from controllers
 - no circular dependencies between modules
 - no cross-layer leakage (e.g. DynamoDB logic in controllers)
 
@@ -50,6 +54,8 @@ Flag:
 - unused DTOs or interfaces
 - unnecessary abstractions (pass-through wrappers, single-use helpers)
 - modules that should be merged or removed
+
+DO NOT suggest introducing new layers or abstractions.
 
 ---
 
@@ -63,9 +69,32 @@ Audit:
 - optional fields that should be required
 - duplicated type definitions across layers
 
+Ensure:
+
+- API-facing types match actual response shape
+- no leakage of DynamoDB internal fields (PK, SK, etc.)
+
 ---
 
-STEP 4 — MULTI-TENANT SAFETY
+STEP 4 — API CONTRACT SAFETY (NEW)
+
+Check:
+
+- all responses match the established contract:
+  { "data": ... } or { "status": "ok" }
+
+- no accidental shape drift
+- no internal fields exposed
+
+Flag:
+
+- inconsistent response wrapping
+- implicit shape changes
+- leaking storage-level fields
+
+---
+
+STEP 5 — MULTI-TENANT SAFETY
 
 Check:
 
@@ -76,7 +105,7 @@ Check:
 
 ---
 
-STEP 5 — DYNAMODB ACCESS
+STEP 6 — DYNAMODB ACCESS
 
 Review:
 
@@ -85,14 +114,24 @@ Review:
 - pagination handling where needed
 - no unbounded queries or N+1 patterns
 
+Ensure:
+
+- keys follow established patterns (TENANT#, ENTITY#)
+- no ad-hoc key construction scattered across code
+
 Do NOT flag:
 
 - queries bounded by partition key
 - scans on small/static tables
 
+Do NOT suggest:
+- adding GSIs
+- introducing ORM layers
+- adding repository abstractions
+
 ---
 
-STEP 6 — ASYNC CORRECTNESS
+STEP 7 — ASYNC CORRECTNESS
 
 Check:
 
@@ -103,19 +142,28 @@ Check:
 
 Do NOT flag sequential awaits that are intentional.
 
+Do NOT suggest:
+- background jobs
+- queues
+- async pipelines
+
 ---
 
-STEP 7 — VALIDATION & SECURITY
+STEP 8 — VALIDATION & SECURITY
 
 Review all external inputs (HTTP requests, query params):
 
-- validation before processing
+- validation before processing (inline only)
 - no trust of external input
 - no injection risks
 
+Do NOT suggest:
+- validation frameworks
+- decorators or schema libraries
+
 ---
 
-STEP 8 — LOGGING
+STEP 9 — LOGGING
 
 Ensure logs:
 
@@ -125,7 +173,22 @@ Ensure logs:
 
 ---
 
-STEP 9 — OUTPUT
+STEP 10 — MINIMALISM ENFORCEMENT (NEW)
+
+Actively identify:
+
+- over-engineering
+- defensive abstractions not used in practice
+- “future-proofing” code that adds complexity
+
+Prefer:
+
+- inline logic over indirection
+- deletion over generalization
+
+---
+
+STEP 11 — OUTPUT
 
 ## SUMMARY
 
@@ -139,7 +202,10 @@ Top issues:
 
 For each finding:
 
-- Priority: P0 (data corruption, tenant leak, broken async) / P1 (reliability, bad queries) / P2 (complexity, duplication) / P3 (cleanup)
+- Priority: P0 (data corruption, tenant leak, broken async, contract break)
+            P1 (reliability, bad queries, incorrect scoping)
+            P2 (complexity, duplication, unnecessary abstractions)
+            P3 (cleanup)
 - File(s):
 - Problem:
 - Recommended change:
@@ -154,5 +220,7 @@ Concrete low-risk improvements (remove unused code, tighten types, simplify).
 - NestJS application starts successfully
 - no dead code remains
 - all DynamoDB access is tenant-scoped
+- API contract is unchanged
 - async flows are correct
 - no unused abstractions
+- no new layers introduced
