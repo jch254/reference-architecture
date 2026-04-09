@@ -1,5 +1,5 @@
 ---
-description: Update README and all nested READMEs to reflect current architecture
+description: Update README and all nested READMEs to reflect current architecture (preserve local dev instructions)
 agent: agent
 ---
 
@@ -28,17 +28,48 @@ This is NOT a product. It is a minimal, reusable reference architecture.
 - Reflect the current architecture accurately
 - Keep documentation minimal and intentional
 - Ensure each layer documents itself (not centrally duplicated)
+- Preserve all working local development instructions exactly
 
 ---
 
-## Strict Rules
+## 🚨 CRITICAL RULE — LOCAL DEV PRESERVATION (HIGHEST PRIORITY)
 
-- Do NOT over-document
-- Do NOT add tutorials or step-by-step guides
-- Do NOT add marketing language
-- Do NOT duplicate information across files
-- Do NOT centralize details that belong to a specific layer
-- Each layer owns its own explanation
+Local development instructions are authoritative and must not be removed, rewritten, or simplified.
+
+### Definition (what counts as local dev instructions)
+
+Anything related to:
+- running the app locally
+- environment setup (.env, ports, commands)
+- build/run commands (pnpm, npm, docker, etc.)
+- local URLs (localhost, ports)
+- validation scripts (e.g. BASE_URL=... pnpm run validate)
+
+---
+
+### Hard constraints
+
+- DO NOT delete local dev sections
+- DO NOT rewrite them “more concisely”
+- DO NOT move them to another file
+- DO NOT summarize them
+- DO NOT convert them into prose
+
+---
+
+### Allowed actions
+
+- You MAY:
+  - keep them exactly as-is
+  - lightly format (spacing/headings) without changing content
+
+---
+
+### If unsure
+
+If you are not 100% certain a section is safe to modify:
+
+LEAVE IT UNCHANGED
 
 ---
 
@@ -73,10 +104,10 @@ Reference Architecture
 
 Describe structure:
 
-- /src → application  
-- Dockerfile → runtime  
-- buildspec.yml → CI/CD  
-- /infrastructure → deployment  
+- /src → application
+- Dockerfile → runtime
+- buildspec.yml → CI/CD
+- /infrastructure → deployment
 
 DO NOT explain internals here.
 
@@ -84,26 +115,26 @@ DO NOT explain internals here.
 
 #### Principles
 
-- stateless API  
-- tenant-aware  
-- minimal and explicit  
-- no overengineering  
-- append-only analytics  
+- stateless API
+- tenant-aware
+- minimal and explicit
+- no overengineering
+- append-only analytics
 
 ---
 
 #### Endpoints
 
-- GET /api/health  
-- GET /api/example  
-- POST /api/example  
+- GET /api/health
+- GET /api/example
+- POST /api/example
 
 ---
 
 #### Deployment
 
-- Docker + CodeBuild + infrastructure layer  
-- Cloudflare DNS (high-level mention only)  
+- Docker + CodeBuild + infrastructure layer
+- Cloudflare DNS (high-level mention only)
 
 NO details.
 
@@ -183,14 +214,14 @@ Enforce:
 
 Example:
 
-❌ DO NOT explain ECS in root README  
-✅ Explain ECS in /infrastructure/terraform/README.md  
+DO NOT explain ECS in root README
+Explain ECS in /infrastructure/terraform/README.md
 
 ---
 
 ## Task 4 — Minimal docs folder (only if needed)
 
-Create `/docs` ONLY if something cannot belong to a layer.
+Create /docs ONLY if something cannot belong to a layer.
 
 Allowed:
 
@@ -220,7 +251,24 @@ Delete or fix:
 - outdated instructions
 - duplicated explanations
 - references to removed infra (ACM, ALB, etc.)
-- anything that leaks internal strategy or cost decisions
+- anything that leaks internal strategy
+
+---
+
+## 🔒 Task 7 — Diff-Aware Editing (MANDATORY)
+
+Before modifying any README:
+
+1. Identify sections containing:
+   - commands
+   - environment variables
+   - local URLs
+   - scripts
+
+2. Treat these sections as:
+   LOCAL DEV — DO NOT MODIFY
+
+3. Perform edits ONLY outside those sections
 
 ---
 
@@ -238,6 +286,7 @@ Delete or fix:
 - root explains WHAT
 - nested explains HOW (lightly)
 - code explains DETAILS
+- local dev instructions remain untouched
 
 ---
 
@@ -250,3 +299,4 @@ A repository where:
 - nothing is duplicated
 - nothing is over-explained
 - documentation matches the real system exactly
+- local development always works without guessing
