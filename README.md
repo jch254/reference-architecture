@@ -32,6 +32,13 @@ pnpm run build
 pnpm run start:prod
 ```
 
+Or with Docker:
+
+```bash
+docker build -t ref-arch .
+docker run -p 3000:3000 ref-arch
+```
+
 ## Deployment
 
 Push to `main` → CodeBuild builds + pushes Docker image to ECR → Terraform apply → ECS service stabilises.
