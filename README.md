@@ -1,6 +1,6 @@
 # Reference Architecture
 
-Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. No domain logic. No async/background systems.
+Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. Multi-tenant data layer. Append-only analytics. No domain logic. No async/background systems.
 
 ## Architecture
 
@@ -14,15 +14,16 @@ buildspec.yml               → CI/CD (CodeBuild)
 ## Principles
 
 - stateless API
-- tenant-aware (subdomain-based, tenant isolation at DynamoDB key level)
+- tenant-aware
 - minimal and explicit
 - no overengineering
+- append-only analytics
 
 ## Endpoints
 
-- `GET /api/health` → `{ status, timestamp }`
-- `POST /api/example` → write tenant-scoped item to DynamoDB
-- `GET /api/example` → list tenant-scoped items from DynamoDB
+- `GET  /api/health`
+- `POST /api/example`
+- `GET  /api/example`
 
 ## Running locally
 
@@ -32,86 +33,12 @@ pnpm run build
 pnpm run start:prod
 ```
 
-Or with Docker:
-
-```bash
-docker build -t ref-arch .
-docker run -p 3000:3000 ref-arch
-```
-
 ## Deployment
 
-Push to `main` → CodeBuild → Docker image to ECR → Terraform apply → ECS Fargate → Cloudflare DNS.
+Docker + CodeBuild + Terraform. Cloudflare for DNS.
 
-Rolling deploys: ECS runs new task alongside old, waits for container health check to pass, then drains old task. Zero downtime.
-
-## Usage
-
-This is a reference architecture — not a product. Copy it as a starting point for new apps (as done with `/example-project`). Reuse the patterns (tenant isolation, single-table DynamoDB, infra layer) directly.
-
-### First-time bootstrap
-
-ACM certificate validation requires a Cloudflare DNS record, but the Cloudflare step runs after the AWS step. Bootstrap manually once:
-
-```bash
-# 1. Apply ACM cert only
-cd infrastructure/terraform
-terraform init -reconfigure \
-  -backend-config "bucket=$REMOTE_STATE_BUCKET" \
-  -backend-config "key=reference-architecture" \
-  -backend-config "region=ap-southeast-4"
-
-terraform apply \
-  -target=aws_acm_certificate.main \
-  -var-file=environments/prod/terraform.tfvars \
-  -var="image_tag=$(git rev-parse --short HEAD)"
-
-# 2. Create validation CNAME in Cloudflare
-cd cloudflare
-terraform init -reconfigure \
-  -backend-config "bucket=$REMOTE_STATE_BUCKET" \
-  -backend-config "key=reference-architecture-cloudflare" \
-  -backend-config "region=ap-southeast-4"
-
-terraform apply \
-  -target="cloudflare_dns_record.acm_validation" \
-  -var="cloudflare_api_token=$CLOUDFLARE_API_TOKEN" \
-  -var="domain=603.nz" \
-  -var="subdomain=reference-architecture" \
-  -var="aws_region=ap-southeast-4" \
-  -var="aws_state_bucket=$REMOTE_STATE_BUCKET" \
-  -var="aws_state_key=reference-architecture"
-
-# 3. Wait for ACM validation (~2-5 min)
-aws acm wait certificate-validated \
-  --certificate-arn <ACM_CERT_ARN> \
-  --region ap-southeast-4
-
-# 4. Full AWS apply (custom domain + mapping)
-cd ..
-terraform apply \
-  -var-file=environments/prod/terraform.tfvars \
-  -var="image_tag=$(git rev-parse --short HEAD)"
-
-# 5. Full Cloudflare apply (CNAME → custom domain target)
-cd cloudflare
-terraform apply \
-  -var="cloudflare_api_token=$CLOUDFLARE_API_TOKEN" \
-  -var="domain=603.nz" \
-  -var="subdomain=reference-architecture" \
-  -var="aws_region=ap-southeast-4" \
-  -var="aws_state_bucket=$REMOTE_STATE_BUCKET" \
-  -var="aws_state_key=reference-architecture"
-```
-
-After bootstrap, all subsequent deploys run automatically via CodeBuild.
+See [infrastructure/terraform/README.md](infrastructure/terraform/README.md) for details.
 
 ## Usage
 
-Used as a reference architecture for generating new applications.
-
-1. Copy as `/example-project` in a new repository
-2. Use as architectural context for building domain-specific systems
-3. Evolve independently
-
-Reuse structure, not implementation.
+This is a reference architecture — not a product. Copy it as a starting point for new apps (as done with `/example-project`). Reuse the patterns directly.

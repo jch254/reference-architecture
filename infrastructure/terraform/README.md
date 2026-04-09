@@ -1,61 +1,39 @@
-# Infrastructure
+# Infrastructure — Terraform
 
-Terraform configuration for deploying the reference architecture.
+## Architecture
+
+ECS Fargate behind API Gateway HTTP API. No ALB — API Gateway connects directly to ECS via VPC Link + Cloud Map (private service discovery). Public subnets only, no NAT gateway.
 
 ## Resources
 
-- Existing VPC + public subnets (reused via data sources)
-- ECS Fargate (single service, single container)
-- ECR repository
-- API Gateway HTTP API → VPC Link → Cloud Map → ECS
-- CodeBuild project (triggered on push to main)
-- IAM roles (ECS execution, ECS task, CodeBuild)
-- CloudWatch log group
+- ECS Fargate — single service, single container. Rolling deploys with circuit breaker.
+- API Gateway HTTP API — regional custom domain with ACM TLS cert. VPC Link to Cloud Map.
+- Cloud Map — private DNS namespace. ECS registers tasks automatically.
+- DynamoDB — single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, Query.
+- CodeBuild — build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply.
+- `cloudflare/` — DNS layer. See [cloudflare/README.md](cloudflare/README.md).
 
-`cloudflare/` manages DNS — CNAME pointing to the API Gateway default URL.
+## Networking
 
-## Prerequisites
+Public subnets only. ECS tasks get public IPs. VPC Link security group restricts ingress to port 3000.
 
-- Existing VPC with public subnets and an internet gateway
-- S3 bucket for Terraform remote state
-- S3 bucket for CodeBuild cache
+## Rolling deploys
 
-## Setup
+- Old task stays running while new task launches alongside
+- Container health check (`/api/health`) must pass before task is healthy
+- 60s grace period before ECS evaluates health
+- Circuit breaker with rollback enabled
 
-1. Fill in `vpc_id` in `environments/prod/terraform.tfvars`
-2. Run initial apply locally:
+## Bootstrap
 
-```bash
-cd infrastructure/terraform
+ACM certificate requires DNS validation via Cloudflare, but Cloudflare depends on AWS outputs. First deploy requires targeted applies:
 
-terraform init \
-  -backend-config "bucket=<state-bucket>" \
-  -backend-config "key=reference-architecture" \
-  -backend-config "region=<region>"
+1. `terraform apply -target=aws_acm_certificate.main` (AWS layer)
+2. `terraform apply -target=cloudflare_dns_record.acm_validation` (Cloudflare layer)
+3. Wait for ACM validation
+4. Full apply on both layers
 
-terraform apply -var-file=environments/prod/terraform.tfvars
-```
-
-3. After initial deploy, CodeBuild handles all subsequent deployments automatically on push to `main`.
-
-## Cloudflare DNS
-
-Managed in `cloudflare/`. Initial apply is manual; subsequent applies run automatically via CodeBuild.
-
-For initial setup:
-
-```bash
-cd infrastructure/terraform/cloudflare
-
-terraform init \
-  -backend-config "bucket=<state-bucket>" \
-  -backend-config "key=reference-architecture-cloudflare" \
-  -backend-config "region=<region>"
-
-terraform apply
-```
-
-Requires `cloudflare_api_token`, `domain`, `subdomain`, `aws_region`, `aws_state_bucket`, and `aws_state_key`.
+After bootstrap, all subsequent deploys run automatically via CodeBuild.
 
 ## Pipeline flow
 

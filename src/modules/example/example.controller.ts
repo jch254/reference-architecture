@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { Request } from 'express';
 
 import { ExampleService } from './example.service';
@@ -8,21 +15,27 @@ export class ExampleController {
   constructor(private readonly exampleService: ExampleService) {}
 
   @Get('health')
-  getHealth(): { status: string; timestamp: number } {
+  getHealth() {
     return this.exampleService.getHealth();
   }
 
   @Post('example')
-  createExample(
+  async createExample(
     @Req() req: Request,
     @Body() body: { name: string },
   ) {
-    return this.exampleService.createExample(req.tenantSlug, body.name);
+    if (!body.name) throw new BadRequestException('name is required');
+
+    const example = await this.exampleService.createExample(
+      req.tenantSlug,
+      body.name,
+    );
+    return { data: example };
   }
 
   @Get('example')
   async listExamples(@Req() req: Request) {
-    const items = await this.exampleService.listExamples(req.tenantSlug);
-    return { tenantId: req.tenantSlug, items };
+    const examples = await this.exampleService.listExamples(req.tenantSlug);
+    return { data: examples };
   }
 }

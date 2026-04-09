@@ -5,12 +5,20 @@ import { AnalyticsService } from '../../common/analytics/analytics.service';
 import { config } from '../../common/config';
 import {
   BaseEntity,
+  extractId,
   Keys,
   SKPrefix,
 } from '../../common/dynamodb/entity.types';
 import { DynamoDbService } from '../../common/dynamodb/dynamodb.service';
 
-export interface ExampleEntity extends BaseEntity {
+export interface Example {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ExampleEntity extends BaseEntity {
   name: string;
 }
 
@@ -24,17 +32,14 @@ export class ExampleService {
     private readonly analytics: AnalyticsService,
   ) {}
 
-  getHealth(): { status: string; timestamp: number } {
-    return {
-      status: 'ok',
-      timestamp: Date.now(),
-    };
+  getHealth(): { status: string } {
+    return { status: 'ok' };
   }
 
   async createExample(
     tenantSlug: string,
     name: string,
-  ): Promise<ExampleEntity> {
+  ): Promise<Example> {
     const tenantId = tenantSlug;
     const entityId = randomUUID().slice(0, 8);
     const now = new Date().toISOString();
@@ -55,10 +60,10 @@ export class ExampleService {
       entityType: 'example',
     });
 
-    return item;
+    return this.toExample(item);
   }
 
-  async listExamples(tenantSlug: string): Promise<ExampleEntity[]> {
+  async listExamples(tenantSlug: string): Promise<Example[]> {
     const tenantId = tenantSlug;
     const items = await this.dynamoDb.query<ExampleEntity>(
       this.tableName,
@@ -73,6 +78,15 @@ export class ExampleService {
       entityType: 'example',
     });
 
-    return items;
+    return items.map((item) => this.toExample(item));
+  }
+
+  private toExample(entity: ExampleEntity): Example {
+    return {
+      id: extractId(entity.SK),
+      name: entity.name,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 }

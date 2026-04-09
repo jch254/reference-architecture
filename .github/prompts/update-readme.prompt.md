@@ -1,5 +1,5 @@
 ---
-description: Update README and add minimal supporting docs to reflect current architecture
+description: Update README and all nested READMEs to reflect current architecture
 agent: agent
 ---
 
@@ -16,7 +16,7 @@ The repository is a layered reference architecture consisting of:
 - /src → backend application (NestJS)
 - Dockerfile → runtime
 - buildspec.yml → CI/CD
-- /infrastructure → deployment (IaC)
+- /infrastructure → deployment (IaC, including nested layers like Terraform and Cloudflare)
 
 This is NOT a product. It is a minimal, reusable reference architecture.
 
@@ -27,7 +27,7 @@ This is NOT a product. It is a minimal, reusable reference architecture.
 - Make the repository understandable in under 60 seconds
 - Reflect the current architecture accurately
 - Keep documentation minimal and intentional
-- Avoid duplication and unnecessary detail
+- Ensure each layer documents itself (not centrally duplicated)
 
 ---
 
@@ -37,30 +37,39 @@ This is NOT a product. It is a minimal, reusable reference architecture.
 - Do NOT add tutorials or step-by-step guides
 - Do NOT add marketing language
 - Do NOT duplicate information across files
-- Only document what is necessary to understand and use the system
+- Do NOT centralize details that belong to a specific layer
+- Each layer owns its own explanation
 
 ---
 
-## Task 1 — Update README.md
+## Task 1 — Update root README.md
 
-Ensure README contains ONLY the following sections:
+README is the ENTRY POINT only.
 
-### Title
+It must remain high-level and minimal.
+
+---
+
+### README must contain ONLY:
+
+#### Title
 
 Reference Architecture
 
 ---
 
-### What this is
+#### What this is
 
 - minimal production-ready backend architecture
 - built with NestJS + DynamoDB + Docker + CodeBuild + IaC
+- multi-tenant data layer
+- analytics instrumentation (minimal)
 - no domain logic
 - no async/background systems
 
 ---
 
-### Architecture Overview
+#### Architecture Overview
 
 Describe structure:
 
@@ -69,46 +78,38 @@ Describe structure:
 - buildspec.yml → CI/CD  
 - /infrastructure → deployment  
 
+DO NOT explain internals here.
+
 ---
 
-### Principles
+#### Principles
 
 - stateless API  
 - tenant-aware  
 - minimal and explicit  
 - no overengineering  
+- append-only analytics  
 
 ---
 
-### Endpoints
+#### Endpoints
 
-- GET /health  
-- GET /example  
-
----
-
-### Running locally
-
-Keep concise:
-
-- install dependencies  
-- build  
-- run  
-
-(No long instructions)
+- GET /api/health  
+- GET /api/example  
+- POST /api/example  
 
 ---
 
-### Deployment
+#### Deployment
 
 - Docker + CodeBuild + infrastructure layer  
-- no deep explanation  
+- Cloudflare DNS (high-level mention only)  
+
+NO details.
 
 ---
 
-### Usage
-
-Explain briefly:
+#### Usage
 
 - used as a reference architecture
 - copied as /example-project for new apps
@@ -116,73 +117,136 @@ Explain briefly:
 
 ---
 
-## Task 2 — Add docs only if necessary
+## Task 2 — Enforce nested README ownership (CRITICAL)
 
-Create `/docs` ONLY if it adds value.
-
-Allowed files:
+Each major layer MUST have its own README if it has non-obvious behavior.
 
 ---
 
-### /docs/architecture.md
+### Required nested READMEs:
+
+#### /infrastructure/README.md
+
+Must describe:
+
+- overall infra structure
+- relationship between AWS + Cloudflare layers
+- how deployment flows (high-level only)
+
+---
+
+#### /infrastructure/terraform/README.md
+
+Must describe:
+
+- ECS + API Gateway + VPC Link pattern
+- why no ALB / NAT
+- how app connects to infra
+
+DO NOT include deep AWS explanations.
+
+---
+
+#### /infrastructure/terraform/cloudflare/README.md
+
+Must describe:
+
+- DNS role only
+- subdomain → API Gateway mapping
+- Cloudflare handles TLS
+
+DO NOT include provider setup instructions.
+
+---
+
+### Optional (only if needed):
+
+#### /src/README.md
+
+Only if clarity is needed.
 
 Content:
 
-- explain system layering (src / runtime / infra)
-- explain design decisions (minimal, stateless, deterministic)
+- request flow (controller → service → DynamoDB)
+- tenant context usage
+- analytics placement
+
+---
+
+## Task 3 — No duplication rule (VERY IMPORTANT)
+
+Enforce:
+
+- root README = overview only
+- nested READMEs = layer-specific detail
+- no repeating the same explanation across files
+
+Example:
+
+❌ DO NOT explain ECS in root README  
+✅ Explain ECS in /infrastructure/terraform/README.md  
+
+---
+
+## Task 4 — Minimal docs folder (only if needed)
+
+Create `/docs` ONLY if something cannot belong to a layer.
+
+Allowed:
+
+### /docs/architecture.md
+
+- explain layering (src → runtime → infra)
+- explain design philosophy
 - keep under ~30 lines
 
 ---
 
-### /docs/infrastructure.md
-
-Content:
-
-- describe ECS + API Gateway + networking at a high level
-- explain how infra aligns with the app
-- no deep AWS explanations
-
----
-
-## Task 3 — Do NOT create docs for
-
-- frontend (not implemented yet)
-- DynamoDB deep theory
-- anything obvious from code
-- anything already explained in README
-
----
-
-## Task 4 — Consistency check
+## Task 5 — Consistency check
 
 Ensure:
 
-- README and docs align
+- all READMEs align with actual code
+- no outdated references (e.g. ACM, ALB, old infra)
 - no contradictions
-- no outdated references
+- no references to removed systems
+
+---
+
+## Task 6 — Remove bad documentation
+
+Delete or fix:
+
+- outdated instructions
+- duplicated explanations
+- references to removed infra (ACM, ALB, etc.)
+- anything that leaks internal strategy or cost decisions
 
 ---
 
 ## Output
 
-- updated README.md
-- any new docs under /docs (only if justified)
+- updated root README.md
+- updated or created nested READMEs where appropriate
+- optional /docs files (only if justified)
 - brief summary of changes
 
 ---
 
-## Principle
+## Principles
 
-If documentation feels long → reduce it  
-If something is obvious from code → remove it  
-If something is repeated → consolidate it  
+- root explains WHAT
+- nested explains HOW (lightly)
+- code explains DETAILS
 
 ---
 
 ## Final Goal
 
-A repository that:
+A repository where:
 
-- is immediately understandable
-- reflects the real system
-- remains minimal and intentional
+- root README is instantly understandable
+- each layer explains itself
+- nothing is duplicated
+- nothing is over-explained
+- documentation matches the real system exactly

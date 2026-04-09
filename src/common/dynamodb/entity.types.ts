@@ -27,3 +27,8 @@ export const SKPrefix = {
   EXAMPLE: 'EXAMPLE#',
   EVENT: 'EVENT#',
 };
+
+export function extractId(sk: string): string {
+  const [, id] = sk.split('#');
+  return id;
+}
