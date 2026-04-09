@@ -3,6 +3,11 @@ output "api_gateway_url" {
   value       = aws_apigatewayv2_api.main.api_endpoint
 }
 
+output "dynamodb_table_name" {
+  description = "Name of the DynamoDB entities table"
+  value       = aws_dynamodb_table.entities.name
+}
+
 output "api_gateway_custom_domain_target" {
   description = "Target domain name for DNS CNAME (point your domain here)"
   value       = aws_apigatewayv2_domain_name.main.domain_name_configuration[0].target_domain_name

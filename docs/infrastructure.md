@@ -6,6 +6,7 @@
 - **API Gateway HTTP API** — regional custom domain with ACM TLS cert. VPC Link to Cloud Map for private service discovery.
 - **Cloud Map** — private DNS namespace. ECS registers tasks automatically. API Gateway routes to healthy instances via SRV records.
 - **Cloudflare** — DNS + edge proxy. CNAME points at API Gateway custom domain target. Also hosts the ACM certificate validation record.
+- **DynamoDB** — single table (`<name>-entities`), PAY_PER_REQUEST billing, TTL enabled. ECS task role scoped to GetItem, PutItem, UpdateItem, Query.
 - **CodeBuild** — builds Docker image, pushes to ECR, runs Terraform apply, waits for ECS stabilisation, then applies Cloudflare DNS.
 
 ## Networking

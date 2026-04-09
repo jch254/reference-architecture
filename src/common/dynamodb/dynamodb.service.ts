@@ -91,16 +91,22 @@ export class DynamoDbService {
     tableName: string,
     keyConditionExpression: string,
     expressionAttributeValues: Record<string, NativeAttributeValue>,
-    indexName?: string,
-    limit?: number,
+    options?: {
+      indexName?: string;
+      limit?: number;
+      scanIndexForward?: boolean;
+      expressionAttributeNames?: Record<string, string>;
+    },
   ): Promise<T[]> {
     const result = await this.docClient.send(
       new QueryCommand({
         TableName: tableName,
         KeyConditionExpression: keyConditionExpression,
         ExpressionAttributeValues: expressionAttributeValues,
-        IndexName: indexName,
-        Limit: limit,
+        IndexName: options?.indexName,
+        Limit: options?.limit,
+        ScanIndexForward: options?.scanIndexForward,
+        ExpressionAttributeNames: options?.expressionAttributeNames,
       }),
     );
     return (result.Items as T[]) || [];

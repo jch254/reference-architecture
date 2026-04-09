@@ -14,6 +14,7 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.set('trust proxy', 1);
   app.enableCors();
+  app.setGlobalPrefix('api');
 
   await app.listen(config.port, '0.0.0.0');
   logger.log(`Application listening on port ${config.port}`);

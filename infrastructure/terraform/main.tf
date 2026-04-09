@@ -202,6 +202,34 @@ resource "aws_apigatewayv2_api_mapping" "main" {
   stage       = aws_apigatewayv2_stage.main.id
 }
 
+# DynamoDB Table — single-table design
+resource "aws_dynamodb_table" "entities" {
+  name         = "${var.name}-entities"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "PK"
+  range_key    = "SK"
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "SK"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
+  tags = {
+    Name        = "${var.name}-entities"
+    Environment = var.environment
+  }
+}
+
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.name}-cluster"
@@ -257,6 +285,18 @@ resource "aws_ecs_task_definition" "main" {
         {
           name  = "PORT"
           value = "3000"
+        },
+        {
+          name  = "DYNAMODB_TABLE"
+          value = aws_dynamodb_table.entities.name
+        },
+        {
+          name  = "AWS_REGION"
+          value = var.region
+        },
+        {
+          name  = "BASE_DOMAIN"
+          value = var.cloudflare_domain
         }
       ]
 
@@ -375,6 +415,31 @@ resource "aws_iam_role" "ecs_task_role" {
     Name        = "${var.name}-ecs-task-role"
     Environment = var.environment
   }
+}
+
+resource "aws_iam_role_policy" "ecs_task_dynamodb" {
+  name = "${var.name}-ecs-task-dynamodb"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:DescribeTable"
+        ]
+        Resource = [
+          aws_dynamodb_table.entities.arn,
+          "${aws_dynamodb_table.entities.arn}/index/*"
+        ]
+      }
+    ]
+  })
 }
 
 # IAM — CodeBuild Role
@@ -598,6 +663,21 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "ssm:GetParameters"
         ]
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/reference-architecture/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:CreateTable",
+          "dynamodb:DeleteTable",
+          "dynamodb:DescribeTable",
+          "dynamodb:DescribeTimeToLive",
+          "dynamodb:UpdateTimeToLive",
+          "dynamodb:DescribeContinuousBackups",
+          "dynamodb:ListTagsOfResource",
+          "dynamodb:TagResource",
+          "dynamodb:UntagResource"
+        ]
+        Resource = "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.name}-*"
       }
     ]
   })

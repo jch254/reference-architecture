@@ -14,14 +14,15 @@ buildspec.yml               → CI/CD (CodeBuild)
 ## Principles
 
 - stateless API
-- tenant-aware (subdomain-based)
+- tenant-aware (subdomain-based, tenant isolation at DynamoDB key level)
 - minimal and explicit
 - no overengineering
 
 ## Endpoints
 
-- `GET /health` → `{ status, timestamp }`
-- `GET /example` → `{ message, requestId, tenantId }`
+- `GET /api/health` → `{ status, timestamp }`
+- `POST /api/example` → write tenant-scoped item to DynamoDB
+- `GET /api/example` → list tenant-scoped items from DynamoDB
 
 ## Running locally
 
@@ -43,6 +44,10 @@ docker run -p 3000:3000 ref-arch
 Push to `main` → CodeBuild → Docker image to ECR → Terraform apply → ECS Fargate → Cloudflare DNS.
 
 Rolling deploys: ECS runs new task alongside old, waits for container health check to pass, then drains old task. Zero downtime.
+
+## Usage
+
+This is a reference architecture — not a product. Copy it as a starting point for new apps (as done with `/example-project`). Reuse the patterns (tenant isolation, single-table DynamoDB, infra layer) directly.
 
 ### First-time bootstrap
 

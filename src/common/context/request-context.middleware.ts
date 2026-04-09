@@ -19,7 +19,7 @@ export class RequestContextMiddleware implements NestMiddleware {
       const { method, originalUrl } = req;
       const { statusCode } = res;
 
-      if (originalUrl.startsWith('/health')) return;
+      if (originalUrl.includes('/health')) return;
       if (statusCode < 400) return;
 
       const line = `[reqId=${requestId}] ${method} ${originalUrl} ${statusCode} ${duration}ms`;
