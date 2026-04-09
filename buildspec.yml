@@ -55,6 +55,8 @@ phases:
       - echo AWS deployment completed
       - ./infrastructure/terraform/cloudflare/deploy-cloudflare.bash
       - echo Deployment completed
+      - echo Running system validation...
+      - BASE_URL=https://reference-architecture.603.nz pnpm run validate
 
 cache:
   paths:

@@ -23,7 +23,7 @@ export function App() {
       setExamples(json.data);
       setRawResponse(JSON.stringify(json, null, 2));
       setError(null);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to fetch examples');
     }
   };
@@ -47,10 +47,21 @@ export function App() {
       setName('');
       await fetchExamples();
       setError(null);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to create example');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/example/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      await fetchExamples();
+      setError(null);
+    } catch (_err) {
+      setError('Failed to delete example');
     }
   };
 
@@ -92,6 +103,7 @@ export function App() {
               <th style={th}>ID</th>
               <th style={th}>Name</th>
               <th style={th}>Created At</th>
+              <th style={th}></th>
             </tr>
           </thead>
           <tbody>
@@ -100,6 +112,14 @@ export function App() {
                 <td style={td}>{ex.id}</td>
                 <td style={td}>{ex.name}</td>
                 <td style={td}>{ex.createdAt}</td>
+                <td style={td}>
+                  <button
+                    onClick={() => handleDelete(ex.id)}
+                    style={{ fontSize: 12, cursor: 'pointer', color: '#c00', background: 'none', border: 'none', padding: '2px 6px' }}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

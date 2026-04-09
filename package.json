@@ -5,9 +5,12 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",
+    "lint": "eslint \"src/backend/**/*.ts\" \"scripts/**/*.ts\" package.json",
+    "lint:fix": "eslint \"src/backend/**/*.ts\" \"scripts/**/*.ts\" package.json --fix",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "node dist/main",
+    "validate": "tsx scripts/validate-system.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.902.0",
@@ -22,10 +25,16 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.37.0",
     "@nestjs/cli": "^11.0.7",
     "@nestjs/schematics": "^11.0.5",
     "@types/express": "^5.0.3",
     "@types/node": "^22.16.0",
-    "typescript": "^5.8.3"
+    "eslint": "^9.37.0",
+    "eslint-plugin-import-x": "^4.16.1",
+    "eslint-plugin-package-json": "^0.56.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.46.0"
   }
 }

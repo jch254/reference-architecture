@@ -1,5 +1,6 @@
 import { DynamoDBClient, DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
 import {
+  DeleteCommand,
   DynamoDBDocumentClient,
   GetCommand,
   NativeAttributeValue,
@@ -110,5 +111,14 @@ export class DynamoDbService {
       }),
     );
     return (result.Items as T[]) || [];
+  }
+
+  async deleteItem(
+    tableName: string,
+    key: Record<string, NativeAttributeValue>,
+  ): Promise<void> {
+    await this.docClient.send(
+      new DeleteCommand({ TableName: tableName, Key: key }),
+    );
   }
 }

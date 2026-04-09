@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Req,
 } from '@nestjs/common';
@@ -37,5 +39,11 @@ export class ExampleController {
   async listExamples(@Req() req: Request) {
     const examples = await this.exampleService.listExamples(req.tenantSlug);
     return { data: examples };
+  }
+
+  @Delete('example/:id')
+  async deleteExample(@Req() req: Request, @Param('id') id: string) {
+    await this.exampleService.deleteExample(req.tenantSlug, id);
+    return { data: { id } };
   }
 }

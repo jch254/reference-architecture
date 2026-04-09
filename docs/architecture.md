@@ -5,7 +5,7 @@
 - **Backend** (`/src/backend`) — NestJS API. Stateless, tenant-aware via subdomain. DynamoDB single-table design for persistence. Serves frontend static files.
 - **Frontend** (`/src/frontend`) — React + Vite demo UI. Single-page app served from the same container. Tenant extracted from hostname. Interacts with API via same-origin fetch.
 - **Runtime** (`Dockerfile`) — Node.js container. Single process serves both API and frontend.
-- **CI/CD** (`buildspec.yml`) — CodeBuild. Build → Docker push → Terraform apply → Cloudflare DNS.
+- **CI/CD** (`buildspec.yml`) — CodeBuild. Build → Docker push → Terraform apply → Cloudflare DNS → system validation.
 - **Infrastructure** (`/infrastructure/terraform`) — ECS Fargate behind API Gateway HTTP API with custom domain. DynamoDB table (PAY_PER_REQUEST). Cloudflare for DNS + edge proxy.
 
 ## Design decisions

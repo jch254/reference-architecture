@@ -81,6 +81,14 @@ export class ExampleService {
     return items.map((item) => this.toExample(item));
   }
 
+  async deleteExample(tenantSlug: string, id: string): Promise<void> {
+    const tenantId = tenantSlug;
+    const keys = Keys.tenantEntity(tenantId, 'EXAMPLE', id);
+
+    await this.dynamoDb.deleteItem(this.tableName, keys);
+    this.logger.log(`Deleted example ${id} for tenant ${tenantId}`);
+  }
+
   private toExample(entity: ExampleEntity): Example {
     return {
       id: extractId(entity.SK),

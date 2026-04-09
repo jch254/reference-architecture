@@ -9,8 +9,8 @@ ECS Fargate behind API Gateway HTTP API. No ALB — API Gateway connects directl
 - ECS Fargate — single service, single container. Rolling deploys with circuit breaker.
 - API Gateway HTTP API — regional custom domain with ACM TLS cert. VPC Link to Cloud Map.
 - Cloud Map — private DNS namespace. ECS registers tasks automatically.
-- DynamoDB — single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, Query.
-- CodeBuild — build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply.
+- DynamoDB — single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, DeleteItem, Query.
+- CodeBuild — build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply. Post-deploy system validation.
 - `cloudflare/` — DNS layer. See [cloudflare/README.md](cloudflare/README.md).
 
 ## Networking
@@ -37,4 +37,4 @@ After bootstrap, all subsequent deploys run automatically via CodeBuild.
 
 ## Pipeline flow
 
-`buildspec.yml` → build → Docker push to ECR → Terraform plan/apply → ECS stabilise → Cloudflare Terraform plan/apply.
+`buildspec.yml` → build → Docker push to ECR → Terraform plan/apply → ECS stabilise → Cloudflare Terraform plan/apply → system validation.
