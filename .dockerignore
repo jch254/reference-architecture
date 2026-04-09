@@ -4,3 +4,6 @@ dist
 .git
 .history
 example-project
+src/frontend/node_modules
+src/frontend/dist
+*.tsbuildinfo

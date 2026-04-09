@@ -2,10 +2,15 @@
 .history/
 node_modules
 dist/
-.ds_store
+.DS_Store
 .env
 !.env.example
 .terraform
 .terraform.tfstate
 .terraform.lock.hcl
 *.tfplan
+
+# Frontend
+src/frontend/dist/
+src/frontend/node_modules/
+*.tsbuildinfo

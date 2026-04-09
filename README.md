@@ -1,12 +1,13 @@
 # Reference Architecture
 
-Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. Multi-tenant data layer. Append-only analytics. No domain logic. No async/background systems.
+Minimal, production-ready architecture. NestJS + React + DynamoDB + Docker + CodeBuild + Terraform. Multi-tenant data layer. Append-only analytics. Frontend demo layer. No domain logic. No async/background systems.
 
 ## Architecture
 
 ```
-/src                        → application (NestJS)
-Dockerfile                  → runtime
+/src/backend                → API (NestJS)
+/src/frontend               → demo UI (React + Vite)
+Dockerfile                  → runtime (single container serves both)
 buildspec.yml               → CI/CD (CodeBuild)
 /infrastructure/terraform   → deployment (Terraform + Cloudflare)
 ```
@@ -18,19 +19,43 @@ buildspec.yml               → CI/CD (CodeBuild)
 - minimal and explicit
 - no overengineering
 - append-only analytics
+- single container (API + frontend)
 
 ## Endpoints
 
 - `GET  /api/health`
-- `POST /api/example`
 - `GET  /api/example`
+- `POST /api/example`
+- `GET  /` → frontend
 
 ## Running locally
 
 ```bash
+# Backend
 pnpm install
+pnpm run start:dev
+
+# Frontend (separate terminal)
+cd src/frontend
+pnpm install
+pnpm run dev
+```
+
+Frontend dev server proxies `/api` requests to the backend on port 3000.
+
+To run as a single process (production-like):
+
+```bash
 pnpm run build
+cd src/frontend && pnpm run build && cd ../..
 pnpm run start:prod
+```
+
+With Docker:
+
+```bash
+docker build -t reference-architecture .
+docker run -p 3000:3000 reference-architecture
 ```
 
 ## Deployment

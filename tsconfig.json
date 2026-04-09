@@ -21,6 +21,6 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": "./"
   },
-  "include": ["src/**/*"],
+  "include": ["src/backend/**/*"],
   "exclude": ["node_modules", "dist"]
 }
