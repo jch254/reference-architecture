@@ -19,9 +19,9 @@ export function App() {
   const fetchExamples = async () => {
     try {
       const res = await fetch('/api/example');
-      const data = await res.json();
-      setExamples(data);
-      setRawResponse(JSON.stringify(data, null, 2));
+      const json = await res.json();
+      setExamples(json.data);
+      setRawResponse(JSON.stringify(json, null, 2));
       setError(null);
     } catch (err) {
       setError('Failed to fetch examples');
