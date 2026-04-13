@@ -1,9 +1,26 @@
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 
 const sns = new SNSClient({});
+const ssm = new SSMClient({});
 const TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
 const APP_URL = process.env.APP_URL ?? "";
 const GITHUB_REPO_URL = process.env.GITHUB_REPO_URL ?? "";
+const GITHUB_TOKEN_PARAM = process.env.GITHUB_TOKEN_PARAM ?? "";
+
+let cachedGithubToken: string | undefined;
+
+async function getGithubToken(): Promise<string | undefined> {
+  if (cachedGithubToken !== undefined) return cachedGithubToken;
+  if (!GITHUB_TOKEN_PARAM) return undefined;
+  try {
+    const result = await ssm.send(new GetParameterCommand({ Name: GITHUB_TOKEN_PARAM, WithDecryption: true }));
+    cachedGithubToken = result.Parameter?.Value ?? "";
+    return cachedGithubToken;
+  } catch {
+    return undefined;
+  }
+}
 
 interface CodeBuildPhase {
   "phase-type": string;
@@ -46,8 +63,11 @@ async function fetchCommitMessage(sha: string): Promise<string> {
   try {
     const match = GITHUB_REPO_URL.match(/github\.com\/([^/]+\/[^/]+)/);
     if (!match) return "";
+    const token = await getGithubToken();
+    const headers: Record<string, string> = { "User-Agent": "build-notification-formatter" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const apiUrl = `https://api.github.com/repos/${match[1]}/commits/${sha}`;
-    const res = await fetch(apiUrl, { headers: { "User-Agent": "build-notification-formatter" } });
+    const res = await fetch(apiUrl, { headers });
     if (!res.ok) return "";
     const data = await res.json() as { commit: { message: string } };
     return data.commit.message.split("\n")[0];
