@@ -11,3 +11,5 @@ cache_bucket       = "jch254-codebuild-cache/reference-architecture"
 cloudflare_domain    = "603.nz"
 cloudflare_subdomain = "reference-architecture"
 dns_name             = "reference-architecture.603.nz"
+
+notification_email = "jordan@jch254.com"

@@ -89,3 +89,8 @@ variable "dns_name" {
   description = "Full domain name for the application (e.g. reference-architecture.603.nz)"
   type        = string
 }
+
+variable "notification_email" {
+  description = "Email address for CodeBuild build notifications (must be confirmed after first apply)"
+  type        = string
+}

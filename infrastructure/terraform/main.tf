@@ -679,6 +679,38 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "dynamodb:UntagResource"
         ]
         Resource = "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:GetTopicAttributes",
+          "sns:SetTopicAttributes",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:GetSubscriptionAttributes",
+          "sns:ListTagsForResource",
+          "sns:TagResource",
+          "sns:UntagResource",
+          "sns:ListSubscriptionsByTopic"
+        ]
+        Resource = "arn:aws:sns:${var.region}:${data.aws_caller_identity.current.account_id}:${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "events:PutRule",
+          "events:DeleteRule",
+          "events:DescribeRule",
+          "events:PutTargets",
+          "events:RemoveTargets",
+          "events:ListTargetsByRule",
+          "events:ListTagsForResource",
+          "events:TagResource",
+          "events:UntagResource"
+        ]
+        Resource = "arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:rule/${var.name}-*"
       }
     ]
   })
@@ -775,4 +807,62 @@ resource "aws_codebuild_webhook" "main" {
       pattern = "refs/heads/main"
     }
   }
+}
+
+# SNS Topic for CodeBuild notifications
+resource "aws_sns_topic" "build_notifications" {
+  name = "${var.name}-build-notifications"
+
+  tags = {
+    Name        = "${var.name}-build-notifications"
+    Environment = var.environment
+  }
+}
+
+resource "aws_sns_topic_policy" "build_notifications" {
+  arn = aws_sns_topic.build_notifications.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "events.amazonaws.com" }
+        Action    = "SNS:Publish"
+        Resource  = aws_sns_topic.build_notifications.arn
+      }
+    ]
+  })
+}
+
+resource "aws_sns_topic_subscription" "build_email" {
+  topic_arn = aws_sns_topic.build_notifications.arn
+  protocol  = "email"
+  endpoint  = var.notification_email
+}
+
+# EventBridge rule — CodeBuild success + failure only
+resource "aws_cloudwatch_event_rule" "build_notifications" {
+  name        = "${var.name}-build-notifications"
+  description = "CodeBuild build success and failure events"
+
+  event_pattern = jsonencode({
+    source      = ["aws.codebuild"]
+    detail-type = ["CodeBuild Build State Change"]
+    detail = {
+      build-status = ["SUCCEEDED", "FAILED"]
+      project-name = [aws_codebuild_project.main.name]
+    }
+  })
+
+  tags = {
+    Name        = "${var.name}-build-notifications"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_event_target" "build_notifications" {
+  rule      = aws_cloudwatch_event_rule.build_notifications.name
+  target_id = "${var.name}-build-notifications-sns"
+  arn       = aws_sns_topic.build_notifications.arn
 }
