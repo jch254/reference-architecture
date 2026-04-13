@@ -892,22 +892,10 @@ resource "aws_iam_role_policy" "build_notification_lambda" {
   })
 }
 
-resource "null_resource" "build_notification_lambda_build" {
-  triggers = {
-    source_hash = filesha256("${path.module}/lambda/build-notification-formatter/index.ts")
-  }
-
-  provisioner "local-exec" {
-    command     = "npx esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=cjs --external:@aws-sdk/*"
-    working_dir = "${path.module}/lambda/build-notification-formatter"
-  }
-}
-
 data "archive_file" "build_notification_lambda" {
   type        = "zip"
   source_file = "${path.module}/lambda/build-notification-formatter/dist/index.js"
   output_path = "${path.module}/lambda/build-notification-formatter/dist/build-notification-formatter.zip"
-  depends_on  = [null_resource.build_notification_lambda_build]
 }
 
 resource "aws_lambda_function" "build_notification_formatter" {
