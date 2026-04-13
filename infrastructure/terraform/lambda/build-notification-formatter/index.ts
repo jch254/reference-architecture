@@ -3,6 +3,7 @@ import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 const sns = new SNSClient({});
 const TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
 const APP_URL = process.env.APP_URL ?? "";
+const GITHUB_REPO_URL = process.env.GITHUB_REPO_URL ?? "";
 
 interface CodeBuildPhase {
   "phase-type": string;
@@ -37,6 +38,21 @@ function statusIcon(status: string): string {
     case "SUCCEEDED": return "✅";
     case "FAILED": return "❌";
     default: return "⚠️";
+  }
+}
+
+async function fetchCommitMessage(sha: string): Promise<string> {
+  if (!GITHUB_REPO_URL || !sha || sha === "unknown") return "";
+  try {
+    const match = GITHUB_REPO_URL.match(/github\.com\/([^/]+\/[^/]+)/);
+    if (!match) return "";
+    const apiUrl = `https://api.github.com/repos/${match[1]}/commits/${sha}`;
+    const res = await fetch(apiUrl, { headers: { "User-Agent": "build-notification-formatter" } });
+    if (!res.ok) return "";
+    const data = await res.json() as { commit: { message: string } };
+    return data.commit.message.split("\n")[0];
+  } catch {
+    return "";
   }
 }
 
@@ -78,13 +94,17 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
   const status = detail["build-status"];
   const project = detail["project-name"];
   const buildNum = info["build-number"];
-  const commit = info["source-version"]?.substring(0, 7) ?? "unknown";
+  const fullCommit = info["source-version"] ?? "unknown";
+  const commit = fullCommit.substring(0, 7);
   const initiator = info.initiator ?? "unknown";
   const logsLink = info.logs?.["deep-link"] ?? "";
   const phases = info.phases ?? [];
   const icon = statusIcon(status);
   const duration = formatDuration(phases);
   const projectLink = `https://${event.region}.console.aws.amazon.com/codesuite/codebuild/${event.account}/projects/${project}/history`;
+  const commitLink = GITHUB_REPO_URL ? `${GITHUB_REPO_URL}/commit/${fullCommit}` : "";
+  const commitMsg = await fetchCommitMessage(fullCommit);
+  const commitDisplay = commitMsg ? `${commit} — ${commitMsg}` : commit;
   const subject = `${icon} ${project} build #${buildNum} ${status}`;
   const message = [
     `${icon} Build ${status}`,
@@ -93,7 +113,7 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
     `Build:     #${buildNum}`,
     `Status:    ${status}`,
     `Duration:  ${duration}`,
-    `Commit:    ${commit}`,
+    `Commit:    ${commitDisplay}`,
     `Initiator: ${initiator}`,
     ``,
     `Phases:`,
@@ -102,6 +122,7 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
     ``,
     `URL:      ${APP_URL}`,
     `Project:  ${projectLink}`,
+    ...(commitLink ? [`Commit:   ${commitLink}`] : []),
     `Logs:     ${logsLink}`,
   ].join("\n").trim();
   await sns.send(new PublishCommand({ TopicArn: TOPIC_ARN, Subject: subject.substring(0, 100), Message: message }));
