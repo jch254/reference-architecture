@@ -654,11 +654,17 @@ resource "aws_iam_role_policy" "codebuild_policy" {
       {
         Effect = "Allow"
         Action = [
+          "ssm:DescribeParameters"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ssm:GetParameter",
           "ssm:GetParameters",
           "ssm:PutParameter",
           "ssm:DeleteParameter",
-          "ssm:DescribeParameters",
           "ssm:AddTagsToResource",
           "ssm:RemoveTagsFromResource",
           "ssm:ListTagsForResource"
