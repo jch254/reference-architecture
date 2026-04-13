@@ -711,6 +711,25 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "events:UntagResource"
         ]
         Resource = "arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:rule/${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:CreateFunction",
+          "lambda:DeleteFunction",
+          "lambda:GetFunction",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:GetFunctionConfiguration",
+          "lambda:AddPermission",
+          "lambda:RemovePermission",
+          "lambda:GetPolicy",
+          "lambda:ListVersionsByFunction",
+          "lambda:TagResource",
+          "lambda:UntagResource",
+          "lambda:ListTags"
+        ]
+        Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*"
       }
     ]
   })
@@ -819,26 +838,104 @@ resource "aws_sns_topic" "build_notifications" {
   }
 }
 
-resource "aws_sns_topic_policy" "build_notifications" {
-  arn = aws_sns_topic.build_notifications.arn
+resource "aws_sns_topic_subscription" "build_email" {
+  topic_arn = aws_sns_topic.build_notifications.arn
+  protocol  = "email"
+  endpoint  = var.notification_email
+}
+
+# Lambda formatter — receives EventBridge events and publishes formatted message to SNS
+resource "aws_iam_role" "build_notification_lambda" {
+  name = "${var.name}-build-notification-lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.name}-build-notification-lambda"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy" "build_notification_lambda" {
+  name = "${var.name}-build-notification-lambda"
+  role = aws_iam_role.build_notification_lambda.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect    = "Allow"
-        Principal = { Service = "events.amazonaws.com" }
-        Action    = "SNS:Publish"
-        Resource  = aws_sns_topic.build_notifications.arn
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = aws_sns_topic.build_notifications.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
       }
     ]
   })
 }
 
-resource "aws_sns_topic_subscription" "build_email" {
-  topic_arn = aws_sns_topic.build_notifications.arn
-  protocol  = "email"
-  endpoint  = var.notification_email
+resource "null_resource" "build_notification_lambda_build" {
+  triggers = {
+    source_hash = filesha256("${path.module}/lambda/build-notification-formatter/index.ts")
+  }
+
+  provisioner "local-exec" {
+    command     = "npx esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=cjs --external:@aws-sdk/*"
+    working_dir = "${path.module}/lambda/build-notification-formatter"
+  }
+}
+
+data "archive_file" "build_notification_lambda" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/build-notification-formatter/dist/index.js"
+  output_path = "${path.module}/lambda/build-notification-formatter/dist/build-notification-formatter.zip"
+  depends_on  = [null_resource.build_notification_lambda_build]
+}
+
+resource "aws_lambda_function" "build_notification_formatter" {
+  filename         = data.archive_file.build_notification_lambda.output_path
+  function_name    = "${var.name}-build-notification-formatter"
+  role             = aws_iam_role.build_notification_lambda.arn
+  handler          = "index.handler"
+  runtime          = "nodejs20.x"
+  source_code_hash = data.archive_file.build_notification_lambda.output_base64sha256
+
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.build_notifications.arn
+    }
+  }
+
+  tags = {
+    Name        = "${var.name}-build-notification-formatter"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_permission" "build_notification_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.build_notification_formatter.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.build_notifications.arn
 }
 
 # EventBridge rule — CodeBuild success + failure only
@@ -863,6 +960,6 @@ resource "aws_cloudwatch_event_rule" "build_notifications" {
 
 resource "aws_cloudwatch_event_target" "build_notifications" {
   rule      = aws_cloudwatch_event_rule.build_notifications.name
-  target_id = "${var.name}-build-notifications-sns"
-  arn       = aws_sns_topic.build_notifications.arn
+  target_id = "${var.name}-build-notifications-lambda"
+  arn       = aws_lambda_function.build_notification_formatter.arn
 }
