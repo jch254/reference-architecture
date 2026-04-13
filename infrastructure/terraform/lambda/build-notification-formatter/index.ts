@@ -2,6 +2,7 @@ import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 
 const sns = new SNSClient({});
 const TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
+const APP_URL = process.env.APP_URL ?? "";
 
 interface CodeBuildPhase {
   "phase-type": string;
@@ -98,6 +99,7 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
     formatPhaseTable(phases),
     getFailedPhaseDetails(phases),
     ``,
+    `URL:  ${APP_URL}`,
     `Logs: ${logsLink}`,
   ].join("\n").trim();
   await sns.send(new PublishCommand({ TopicArn: TOPIC_ARN, Subject: subject.substring(0, 100), Message: message }));

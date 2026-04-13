@@ -909,6 +909,7 @@ resource "aws_lambda_function" "build_notification_formatter" {
   environment {
     variables = {
       SNS_TOPIC_ARN = aws_sns_topic.build_notifications.arn
+      APP_URL       = "https://${var.dns_name}"
     }
   }
 
