@@ -130,10 +130,10 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
     `${icon} Build ${status}`,
     `${"─".repeat(40)}`,
     `Project:   ${project}`,
+    `Commit:    ${commitDisplay}`,
     `Build:     #${buildNum}`,
     `Status:    ${status}`,
     `Duration:  ${duration}`,
-    `Commit:    ${commitDisplay}`,
     `Initiator: ${initiator}`,
     ``,
     `Phases:`,
@@ -142,7 +142,7 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
     ``,
     `URL:      ${APP_URL}`,
     `Project:  ${projectLink}`,
-    ...(commitLink ? [`Commit:   ${commitLink}`] : []),
+    ...(commitLink ? [`GitHub:   ${commitLink}`] : []),
     `Logs:     ${logsLink}`,
   ].join("\n").trim();
   await sns.send(new PublishCommand({ TopicArn: TOPIC_ARN, Subject: subject.substring(0, 100), Message: message }));
