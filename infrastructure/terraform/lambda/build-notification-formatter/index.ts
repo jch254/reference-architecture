@@ -84,6 +84,7 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
   const phases = info.phases ?? [];
   const icon = statusIcon(status);
   const duration = formatDuration(phases);
+  const projectLink = `https://${event.region}.console.aws.amazon.com/codesuite/codebuild/${event.account}/projects/${project}/history`;
   const subject = `${icon} ${project} build #${buildNum} ${status}`;
   const message = [
     `${icon} Build ${status}`,
@@ -99,8 +100,9 @@ export async function handler(event: CodeBuildEvent): Promise<void> {
     formatPhaseTable(phases),
     getFailedPhaseDetails(phases),
     ``,
-    `URL:  ${APP_URL}`,
-    `Logs: ${logsLink}`,
+    `URL:      ${APP_URL}`,
+    `Project:  ${projectLink}`,
+    `Logs:     ${logsLink}`,
   ].join("\n").trim();
   await sns.send(new PublishCommand({ TopicArn: TOPIC_ARN, Subject: subject.substring(0, 100), Message: message }));
 }
