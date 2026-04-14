@@ -9,6 +9,7 @@ dist/
 .terraform.tfstate
 .terraform.lock.hcl
 *.tfplan
+*.tfstate
 
 # Frontend
 src/frontend/dist/
