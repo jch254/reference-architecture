@@ -1,17 +1,22 @@
 # Reference Architecture
 
-Minimal, production-ready backend architecture. NestJS + DynamoDB + Docker + CodeBuild + Terraform. Multi-tenant data layer. Append-only analytics. React demo UI (same container). No domain logic. No async/background systems.
+Minimal, production-ready backend architecture.
+
+- NestJS + DynamoDB + Docker + CodeBuild + IaC
+- multi-tenant data layer
+- analytics instrumentation (minimal)
+- no domain logic
+- no async/background systems
 
 **Live:** [reference-architecture.603.nz](https://reference-architecture.603.nz)
 
 ## Architecture
 
 ```
-/src/backend                → API (NestJS)
-/src/frontend               → demo UI (React + Vite)
-Dockerfile                  → runtime
-buildspec.yml               → CI/CD (CodeBuild)
-/infrastructure/terraform   → deployment (Terraform + Cloudflare)
+/src              → application (NestJS API + React frontend)
+Dockerfile        → runtime
+buildspec.yml     → CI/CD (CodeBuild)
+/infrastructure   → deployment (Terraform + Cloudflare)
 ```
 
 ## Principles
@@ -68,4 +73,6 @@ Starts the app, DynamoDB Local, and creates the table automatically.
 
 ## Usage
 
-This is a reference architecture — not a product. Copy it as a starting point for new apps (as done with `/example-project`). Reuse the patterns directly.
+- used as a reference architecture, not a product
+- copied as `/example-project` for new apps
+- reused for systems like GTD
