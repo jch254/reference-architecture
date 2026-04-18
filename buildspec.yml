@@ -3,6 +3,9 @@ version: 0.2
 env:
   variables:
     REMOTE_STATE_BUCKET: "jch254-terraform-remote-state"
+  exported-variables:
+    - COMMIT_MESSAGE
+    - COMMIT_SHA
   parameter-store:
     CLOUDFLARE_API_TOKEN: "/reference-architecture/cloudflare-api-token"
     COOKIE_SECRET: "/reference-architecture/cookie-secret"
@@ -40,6 +43,8 @@ phases:
   build:
     commands:
       - echo Build started on `date`
+      - export COMMIT_MESSAGE="$(git log -1 --pretty=%s 2>/dev/null || echo '')"
+      - export COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-$CODEBUILD_SOURCE_VERSION}"
       - pnpm run build
       - echo Building notification Lambda...
       - mkdir -p infrastructure/terraform/lambda/build-notification-formatter/dist

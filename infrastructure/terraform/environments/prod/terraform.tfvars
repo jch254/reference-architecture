@@ -13,3 +13,4 @@ cloudflare_subdomain = "reference-architecture"
 dns_name             = "reference-architecture.603.nz"
 
 notification_email = "jordan@jch254.com"
+resend_from_email  = "noreply@603.nz"

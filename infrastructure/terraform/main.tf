@@ -297,6 +297,10 @@ resource "aws_ecs_task_definition" "main" {
         {
           name  = "BASE_DOMAIN"
           value = var.cloudflare_domain
+        },
+        {
+          name  = "RESEND_FROM_EMAIL"
+          value = var.resend_from_email
         }
       ]
 
@@ -953,22 +957,6 @@ resource "aws_ssm_parameter" "resend_api_key" {
   }
 }
 
-resource "aws_ssm_parameter" "github_token" {
-  name        = "/${var.name}/github-token"
-  description = "GitHub personal access token for build notification commit lookups"
-  type        = "SecureString"
-  value       = "placeholder"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-
-  tags = {
-    Name        = "${var.name}-github-token"
-    Environment = var.environment
-  }
-}
-
 resource "aws_iam_role_policy" "build_notification_lambda" {
   name = "${var.name}-build-notification-lambda"
   role = aws_iam_role.build_notification_lambda.id
@@ -991,13 +979,6 @@ resource "aws_iam_role_policy" "build_notification_lambda" {
           "logs:PutLogEvents"
         ]
         Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:GetParameter"
-        ]
-        Resource = aws_ssm_parameter.github_token.arn
       }
     ]
   })
@@ -1019,10 +1000,9 @@ resource "aws_lambda_function" "build_notification_formatter" {
 
   environment {
     variables = {
-      SNS_TOPIC_ARN          = aws_sns_topic.build_notifications.arn
-      APP_URL                = "https://${var.dns_name}"
-      GITHUB_REPO_URL        = trimsuffix(var.source_location, ".git")
-      GITHUB_TOKEN_PARAM     = aws_ssm_parameter.github_token.name
+      SNS_TOPIC_ARN   = aws_sns_topic.build_notifications.arn
+      APP_URL         = "https://${var.dns_name}"
+      GITHUB_REPO_URL = trimsuffix(var.source_location, ".git")
     }
   }
 

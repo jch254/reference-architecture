@@ -94,3 +94,8 @@ variable "notification_email" {
   description = "Email address for CodeBuild build notifications (must be confirmed after first apply)"
   type        = string
 }
+
+variable "resend_from_email" {
+  description = "From address used when sending transactional emails via Resend"
+  type        = string
+}

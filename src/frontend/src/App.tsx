@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import './App.css';
 import { api, ApiError, getToken, setToken, clearToken } from './api/api-client';
 
@@ -23,27 +23,41 @@ export function App() {
   const [rawResponse, setRawResponse] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  const fetchExamples = async () => {
+  const logout = useCallback(() => {
+    clearToken();
+    setAuthenticated(false);
+    setExamples([]);
+    setRawResponse('');
+  }, []);
+
+  const handleApiError = useCallback(
+    (err: unknown, fallback: string): string | null => {
+      if (err instanceof ApiError && err.status === 401) {
+        logout();
+        return null;
+      }
+      return err instanceof ApiError ? err.message : fallback;
+    },
+    [logout],
+  );
+
+  const fetchExamples = useCallback(async () => {
     try {
       const data = await api.get<Example[]>('/api/example');
       setExamples([...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setRawResponse(JSON.stringify({ data }, null, 2));
       setError(null);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        clearToken();
-        setAuthenticated(false);
-        return;
-      }
-      setError(err instanceof ApiError ? err.message : 'Failed to fetch examples');
+      const msg = handleApiError(err, 'Failed to fetch examples');
+      if (msg) setError(msg);
     }
-  };
+  }, [handleApiError]);
 
   useEffect(() => {
     if (authenticated) {
       fetchExamples();
     }
-  }, [authenticated]);
+  }, [authenticated, fetchExamples]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,13 +77,6 @@ export function App() {
     }
   };
 
-  const handleLogout = () => {
-    clearToken();
-    setAuthenticated(false);
-    setExamples([]);
-    setRawResponse('');
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -81,7 +88,8 @@ export function App() {
       await fetchExamples();
       setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to create example');
+      const msg = handleApiError(err, 'Failed to create example');
+      if (msg) setError(msg);
     } finally {
       setLoading(false);
     }
@@ -93,7 +101,8 @@ export function App() {
       await fetchExamples();
       setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to delete example');
+      const msg = handleApiError(err, 'Failed to delete example');
+      if (msg) setError(msg);
     }
   };
 
@@ -127,7 +136,7 @@ export function App() {
       ) : (
         <>
           <div className="auth-bar">
-            <button onClick={handleLogout} className="btn btn-ghost">Sign Out</button>
+            <button onClick={logout} className="btn btn-ghost">Sign Out</button>
           </div>
 
           <section className="section">
