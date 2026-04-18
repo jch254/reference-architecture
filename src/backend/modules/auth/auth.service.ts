@@ -212,12 +212,15 @@ export class AuthService {
       case 'redirect': {
         const redirectTo = config.resendRedirectEmail || email;
         try {
-          await this.resend.emails.send({
+          const { error } = await this.resend.emails.send({
             from: config.resendFromEmail,
             to: redirectTo,
             subject: `[REDIRECT] Sign-in link for ${email}`,
             html: `<p><strong>Originally for:</strong> ${email}</p><p><a href="${link}">${link}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
           });
+          if (error) {
+            this.logger.error(`Failed to send redirected magic link email: ${error.name} - ${error.message}`);
+          }
         } catch (error) {
           this.logger.error(`Failed to send redirected magic link email: ${error}`);
         }
@@ -227,12 +230,15 @@ export class AuthService {
       case 'live':
       default:
         try {
-          await this.resend.emails.send({
+          const { error } = await this.resend.emails.send({
             from: config.resendFromEmail,
             to: email,
             subject: 'Your sign-in link',
             html: `<p>Click to sign in:</p><p><a href="${link}">${link}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
           });
+          if (error) {
+            this.logger.error(`Failed to send magic link email to ${email}: ${error.name} - ${error.message}`);
+          }
         } catch (error) {
           this.logger.error(`Failed to send magic link email to ${email}: ${error}`);
         }
