@@ -34,11 +34,16 @@ export class AuthController {
   @Get('verify')
   async verify(
     @Query('t') token: string,
+    @Query('json') json: string,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     if (!token) {
-      res.redirect('/?auth=error');
+      if (json === '1') {
+        res.status(400).json({ error: 'Missing token' });
+      } else {
+        res.redirect('/?auth=error');
+      }
       return;
     }
 
@@ -62,9 +67,17 @@ export class AuthController {
         maxAge: config.sessionMaxAgeDays * 24 * 60 * 60 * 1000,
       });
 
-      res.redirect('/');
+      if (json === '1') {
+        res.json({ ok: true });
+      } else {
+        res.redirect('/');
+      }
     } catch {
-      res.redirect('/?auth=error');
+      if (json === '1') {
+        res.status(401).json({ error: 'Invalid or expired token' });
+      } else {
+        res.redirect('/?auth=error');
+      }
     }
   }
 

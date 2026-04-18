@@ -5,6 +5,7 @@ env:
     REMOTE_STATE_BUCKET: "jch254-terraform-remote-state"
   parameter-store:
     CLOUDFLARE_API_TOKEN: "/reference-architecture/cloudflare-api-token"
+    COOKIE_SECRET: "/reference-architecture/cookie-secret"
 
 phases:
   install:

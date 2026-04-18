@@ -6,9 +6,15 @@
  */
 
 const BASE_URL = process.env.BASE_URL;
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
 
 if (!BASE_URL) {
   console.error("FAIL: BASE_URL environment variable is required");
+  process.exit(1);
+}
+
+if (!COOKIE_SECRET) {
+  console.error("FAIL: COOKIE_SECRET environment variable is required");
   process.exit(1);
 }
 
@@ -18,12 +24,45 @@ async function validate() {
   let failed = false;
   let createdId: string | undefined;
 
+  // --- Step 0: Authenticate via magic-link backdoor ---
+  let sessionCookie: string;
+  try {
+    const linkRes = await fetch(url("/api/auth/request-link"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cookie-secret": COOKIE_SECRET!,
+      },
+      body: JSON.stringify({ email: "validate@system.test" }),
+    });
+    const linkBody = await linkRes.json() as any;
+    const token = linkBody?.data?.token as string | undefined;
+
+    if (!token) throw new Error(`No token in response: ${JSON.stringify(linkBody)}`);
+
+    const verifyRes = await fetch(url(`/api/auth/verify?t=${encodeURIComponent(token)}&json=1`));
+
+    if (!verifyRes.ok) throw new Error(`Verify failed with status ${verifyRes.status}`);
+
+    const rawCookie = verifyRes.headers.get("set-cookie");
+    if (!rawCookie) throw new Error("No set-cookie header in verify response");
+
+    // Extract just the name=value part (before the first ;)
+    sessionCookie = rawCookie.split(";")[0];
+    console.log("PASS: Authentication");
+  } catch (err) {
+    console.error("FAIL: Authentication —", (err as Error).message);
+    process.exit(1);
+  }
+
+  const authHeaders = { Cookie: sessionCookie };
+
   // --- Step 1: Health check ---
   try {
     const res = await fetch(url("/api/health"));
     const body = await res.json();
 
-    if (res.ok && body.status === "ok") {
+    if (res.ok && body.data?.status === "ok") {
       console.log("PASS: GET /api/health");
     } else {
       console.error("FAIL: GET /api/health — unexpected response", body);
@@ -36,7 +75,7 @@ async function validate() {
 
   // --- Step 2: Empty state — GET before POST returns valid array ---
   try {
-    const res = await fetch(url("/api/example"));
+    const res = await fetch(url("/api/example"), { headers: authHeaders });
     const body = await res.json();
 
     if (res.ok && Array.isArray(body.data)) {
@@ -54,7 +93,7 @@ async function validate() {
   try {
     const res = await fetch(url("/api/example"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify({}),
     });
 
@@ -75,7 +114,7 @@ async function validate() {
   try {
     const res = await fetch(url("/api/example"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify({ name: exampleName }),
     });
     const body = await res.json();
@@ -101,7 +140,7 @@ async function validate() {
 
   // --- Step 5: List examples and verify created item is present ---
   try {
-    const res = await fetch(url("/api/example"));
+    const res = await fetch(url("/api/example"), { headers: authHeaders });
     const body = await res.json();
 
     if (!res.ok || !Array.isArray(body.data)) {
@@ -132,34 +171,40 @@ async function validate() {
   if (createdId) {
     try {
       // First, capture what the original tenant sees for comparison
-      const originalRes = await fetch(url("/api/example"));
+      const originalRes = await fetch(url("/api/example"), { headers: authHeaders });
       const originalBody = await originalRes.json();
       const originalIds = new Set(
         (originalBody.data || []).map((item: any) => item.id),
       );
 
       const res = await fetch(url("/api/example"), {
-        headers: { Host: `validation-tenant.603.nz` },
+        headers: { ...authHeaders, Host: `validation-tenant.603.nz` },
       });
-      const body = await res.json();
 
-      if (!res.ok || !Array.isArray(body.data)) {
-        console.error("FAIL: Tenant isolation — unexpected response shape", body);
-        failed = true;
+      if (res.status === 401) {
+        // Session cookie is tenant-scoped — auth failure for a different tenant proves isolation
+        console.log("PASS: Tenant isolation — session rejected for different tenant");
       } else {
-        const otherIds = new Set(body.data.map((item: any) => item.id));
-        const sameResultSet =
-          otherIds.size === originalIds.size &&
-          [...otherIds].every((id) => originalIds.has(id));
+        const body = await res.json();
 
-        if (sameResultSet && body.data.some((item: any) => item.id === createdId)) {
-          // Proxy likely stripped the Host override — identical data returned
-          console.log("SKIP: Tenant isolation — Host header override not forwarded by proxy");
-        } else if (body.data.some((item: any) => item.id === createdId)) {
-          console.error("FAIL: Tenant isolation — created item visible to other tenant");
+        if (!res.ok || !Array.isArray(body.data)) {
+          console.error("FAIL: Tenant isolation — unexpected response shape", body);
           failed = true;
         } else {
-          console.log("PASS: Tenant isolation — created item not visible to other tenant");
+          const otherIds = new Set(body.data.map((item: any) => item.id));
+          const sameResultSet =
+            otherIds.size === originalIds.size &&
+            [...otherIds].every((id) => originalIds.has(id));
+
+          if (sameResultSet && body.data.some((item: any) => item.id === createdId)) {
+            // Proxy likely stripped the Host override — identical data returned
+            console.log("SKIP: Tenant isolation — Host header override not forwarded by proxy");
+          } else if (body.data.some((item: any) => item.id === createdId)) {
+            console.error("FAIL: Tenant isolation — created item visible to other tenant");
+            failed = true;
+          } else {
+            console.log("PASS: Tenant isolation — created item not visible to other tenant");
+          }
         }
       }
     } catch (err) {
@@ -173,6 +218,7 @@ async function validate() {
     try {
       const res = await fetch(url(`/api/example/${createdId}`), {
         method: "DELETE",
+        headers: authHeaders,
       });
 
       if (res.ok) {
