@@ -14,7 +14,7 @@ export class RequestContextMiddleware implements NestMiddleware {
     req.requestId = requestId;
     res.setHeader('x-request-id', requestId);
 
-    requestContextStore.run({ requestId, tenantSlug: '' }, () => {
+    requestContextStore.run({ requestId, tenantSlug: '', user: null }, () => {
       const start = Date.now();
 
       res.on('finish', () => {

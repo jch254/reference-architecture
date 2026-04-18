@@ -1,8 +1,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
-export interface RequestContext {
-  requestId: string;
-  tenantSlug: string;
-}
+import { RequestContext } from './identity.types';
+
+export type { RequestContext };
 
 export const requestContextStore = new AsyncLocalStorage<RequestContext>();

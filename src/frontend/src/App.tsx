@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import './App.css';
+import { api, ApiError } from './api/api-client';
 
 interface Example {
   id: string;
@@ -20,13 +21,12 @@ export function App() {
 
   const fetchExamples = async () => {
     try {
-      const res = await fetch('/api/example');
-      const json = await res.json();
-      setExamples(json.data);
-      setRawResponse(JSON.stringify(json, null, 2));
+      const data = await api.get<Example[]>('/api/example');
+      setExamples(data);
+      setRawResponse(JSON.stringify({ data }, null, 2));
       setError(null);
-    } catch (_err) {
-      setError('Failed to fetch examples');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to fetch examples');
     }
   };
 
@@ -40,17 +40,12 @@ export function App() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/example', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      if (!res.ok) throw new Error('Create failed');
+      await api.post('/api/example', { name: name.trim() });
       setName('');
       await fetchExamples();
       setError(null);
-    } catch (_err) {
-      setError('Failed to create example');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create example');
     } finally {
       setLoading(false);
     }
@@ -58,12 +53,11 @@ export function App() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/example/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
+      await api.delete(`/api/example/${id}`);
       await fetchExamples();
       setError(null);
-    } catch (_err) {
-      setError('Failed to delete example');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete example');
     }
   };
 

@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 
+import { Public } from '../auth/auth.guard';
 import { ExampleService } from './example.service';
 
 @Controller()
 export class ExampleController {
   constructor(private readonly exampleService: ExampleService) {}
 
+  @Public()
   @Get('health')
   getHealth() {
     return this.exampleService.getHealth();
@@ -29,21 +31,21 @@ export class ExampleController {
     if (!body.name) throw new BadRequestException('name is required');
 
     const example = await this.exampleService.createExample(
-      req.tenantSlug,
+      req.user!.tenantSlug,
       body.name,
     );
-    return { data: example };
+    return example;
   }
 
   @Get('example')
   async listExamples(@Req() req: Request) {
-    const examples = await this.exampleService.listExamples(req.tenantSlug);
-    return { data: examples };
+    const examples = await this.exampleService.listExamples(req.user!.tenantSlug);
+    return examples;
   }
 
   @Delete('example/:id')
   async deleteExample(@Req() req: Request, @Param('id') id: string) {
-    await this.exampleService.deleteExample(req.tenantSlug, id);
-    return { data: { id } };
+    await this.exampleService.deleteExample(req.user!.tenantSlug, id);
+    return { id };
   }
 }

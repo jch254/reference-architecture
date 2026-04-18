@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import { join } from 'path';
 
 import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './common/api/http-exception.filter';
+import { ApiResponseInterceptor } from './common/api/response.interceptor';
 import { config } from './common/config';
 
 async function bootstrap(): Promise<void> {
@@ -26,6 +28,8 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
   app.setGlobalPrefix('api');
+  app.useGlobalInterceptors(new ApiResponseInterceptor());
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   // Serve frontend static files
   const frontendPath = join(__dirname, '..', 'frontend', 'dist');

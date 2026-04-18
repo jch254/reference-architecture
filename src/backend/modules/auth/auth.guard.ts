@@ -2,6 +2,8 @@ import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedExc
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 
+import { SessionClaims } from '../../common/context/identity.types';
+import { requestContextStore } from '../../common/context/request-context.store';
 import { AuthService } from './auth.service';
 
 export const IS_PUBLIC_KEY = 'isPublic';
@@ -28,7 +30,7 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    let payload: { email: string; tenantSlug: string; iat: number; sessionVersion?: string };
+    let payload: SessionClaims;
     try {
       payload = JSON.parse(payloadStr);
     } catch {
@@ -38,7 +40,12 @@ export class AuthGuard implements CanActivate {
     const valid = await this.authService.validateSession(payload, req.tenantSlug);
     if (!valid) throw new UnauthorizedException();
 
-    req.user = { email: payload.email, tenantSlug: payload.tenantSlug };
+    const user = { email: payload.email, tenantSlug: payload.tenantSlug };
+    req.user = user;
+
+    const store = requestContextStore.getStore();
+    if (store) store.user = user;
+
     return true;
   }
 }

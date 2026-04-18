@@ -19,6 +19,7 @@ export class AnalyticsService {
     const store = requestContextStore.getStore();
     const tenantId = store?.tenantSlug || 'unknown';
     const requestId = store?.requestId || 'unknown';
+    const userEmail = store?.user?.email || 'unknown';
     const timestamp = Date.now();
     const keys = Keys.analyticsEvent(tenantId, timestamp, eventName, requestId);
 
@@ -29,6 +30,7 @@ export class AnalyticsService {
         eventName,
         timestamp,
         requestId,
+        userEmail,
         ...(metadata && { metadata }),
         createdAt: new Date(timestamp).toISOString(),
         updatedAt: new Date(timestamp).toISOString(),
