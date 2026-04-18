@@ -300,6 +300,17 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
 
+      secrets = [
+        {
+          name      = "COOKIE_SECRET"
+          valueFrom = aws_ssm_parameter.cookie_secret.arn
+        },
+        {
+          name      = "RESEND_API_KEY"
+          valueFrom = aws_ssm_parameter.resend_api_key.arn
+        }
+      ]
+
       healthCheck = {
         command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
         interval    = 15
@@ -392,6 +403,35 @@ resource "aws_iam_role" "ecs_execution_role" {
 resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   role       = aws_iam_role.ecs_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy" "ecs_execution_ssm" {
+  name = "${var.name}-ecs-execution-ssm"
+  role = aws_iam_role.ecs_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["ssm:GetParameters"]
+        Resource = [
+          aws_ssm_parameter.cookie_secret.arn,
+          aws_ssm_parameter.resend_api_key.arn,
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
 }
 
 # IAM — ECS Task Role
@@ -875,6 +915,38 @@ resource "aws_iam_role" "build_notification_lambda" {
 
   tags = {
     Name        = "${var.name}-build-notification-lambda"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ssm_parameter" "cookie_secret" {
+  name        = "/${var.name}/cookie-secret"
+  description = "Secret key for cookie signing"
+  type        = "SecureString"
+  value       = "placeholder"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Name        = "${var.name}-cookie-secret"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ssm_parameter" "resend_api_key" {
+  name        = "/${var.name}/resend-api-key"
+  description = "Resend API key for sending transactional emails"
+  type        = "SecureString"
+  value       = "placeholder"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Name        = "${var.name}-resend-api-key"
     Environment = var.environment
   }
 }
