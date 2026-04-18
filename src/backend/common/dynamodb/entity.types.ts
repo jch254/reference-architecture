@@ -16,11 +16,23 @@ export const Keys = {
     PK: `TENANT#${tenantId}`,
     SK: `EVENT#${timestamp}#${eventName}#${requestId}`,
   }),
+
+  authToken: (tenantId: string, email: string) => ({
+    PK: `TENANT#${tenantId}`,
+    SK: `AUTH_TOKEN#${email}`,
+  }),
+
+  tenantAdmin: (tenantId: string) => ({
+    PK: `TENANT#${tenantId}`,
+    SK: 'TENANT_ADMIN',
+  }),
 };
 
 export const SKPrefix = {
   EXAMPLE: 'EXAMPLE#',
   EVENT: 'EVENT#',
+  AUTH_TOKEN: 'AUTH_TOKEN#',
+  TENANT_ADMIN: 'TENANT_ADMIN',
 };
 
 export function extractId(sk: string): string {

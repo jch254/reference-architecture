@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import { join } from 'path';
@@ -13,9 +14,17 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.use(cookieParser(config.cookieSecret));
   app.use(helmet());
   app.set('trust proxy', 1);
-  app.enableCors();
+
+  const isLocal = config.baseDomain === 'localhost';
+  app.enableCors({
+    origin: isLocal
+      ? true
+      : [new RegExp(`https?://([^.]+\\.)?${config.baseDomain.replace('.', '\\.')}`)],
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
 
   // Serve frontend static files
