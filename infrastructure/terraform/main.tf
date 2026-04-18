@@ -672,6 +672,14 @@ resource "aws_iam_role_policy" "codebuild_policy" {
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.name}/*"
       },
       {
+        # CodeBuild stores GitHub OAuth credentials here internally when using import-source-credentials
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:shared/github-token*"
+      },
+      {
         Effect = "Allow"
         Action = [
           "dynamodb:CreateTable",
