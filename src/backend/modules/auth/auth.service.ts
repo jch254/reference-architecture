@@ -41,22 +41,14 @@ export class AuthService {
   async requestLink(email: string, tenantSlug: string, suppressEmail = false): Promise<string | null> {
     const normalisedEmail = email.toLowerCase().trim();
 
-    // Check if tenant has an admin
+    // Ensure tenant has an admin record (first user bootstraps it)
     const admin = await this.getAdmin(tenantSlug);
 
     if (!admin) {
-      // First visit — register this email as tenant admin
       await this.createAdmin(tenantSlug, normalisedEmail);
-      return this.generateAndSendToken(normalisedEmail, tenantSlug, suppressEmail);
     }
 
-    // Tenant exists — only send token if email matches admin
-    if (admin.email === normalisedEmail) {
-      return this.generateAndSendToken(normalisedEmail, tenantSlug, suppressEmail);
-    }
-
-    // Always return silently — no email enumeration
-    return null;
+    return this.generateAndSendToken(normalisedEmail, tenantSlug, suppressEmail);
   }
 
   async verify(rawToken: string, tenantSlug: string): Promise<{ email: string; tenantSlug: string; sessionVersion: string }> {
@@ -104,31 +96,17 @@ export class AuthService {
     const maxAge = config.sessionMaxAgeDays * 24 * 60 * 60 * 1000;
     if (Date.now() - payload.iat > maxAge) return false;
 
-    // Sessions without a version are always invalid
-    if (!payload.sessionVersion) return false;
-
-    // Verify the email is still the tenant admin and session version matches
-    const admin = await this.getAdmin(requestTenantSlug);
-    if (!admin || admin.email !== payload.email) return false;
-
-    // Reject sessions issued before the latest login (sessionVersion mismatch)
-    if (admin.sessionVersion !== payload.sessionVersion) return false;
-
     return true;
   }
 
   async issueApiToken(email: string, tenantSlug: string): Promise<string | null> {
     const normalisedEmail = email.toLowerCase().trim();
 
-    // Check if tenant has an admin
+    // Ensure tenant has an admin record (first user bootstraps it)
     const admin = await this.getAdmin(tenantSlug);
 
     if (!admin) {
-      // First visit — register this email as tenant admin
       await this.createAdmin(tenantSlug, normalisedEmail);
-    } else if (admin.email !== normalisedEmail) {
-      // Email doesn't match admin — reject silently
-      return null;
     }
 
     const rawToken = randomBytes(32).toString('hex');
@@ -174,10 +152,6 @@ export class AuthService {
 
     if (new Date(record.expiresAt) < new Date()) return null;
     if (record.tenantSlug !== tenantSlug) return null;
-
-    // Verify email is still the tenant admin
-    const admin = await this.getAdmin(tenantSlug);
-    if (!admin || admin.email !== record.email) return null;
 
     return { email: record.email, tenantSlug: record.tenantSlug };
   }

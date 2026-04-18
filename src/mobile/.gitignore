@@ -1,0 +1,61 @@
+# --- OSX ---
+.DS_Store
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Metro / RN ---
+.metro-health-check*
+*.jsbundle
+
+# --- Env ---
+.env*
+!.env.example
+
+# --- Coverage ---
+coverage/
+
+# --- iOS ---
+ios/build/
+ios/DerivedData/
+ios/Pods/
+ios/.xcode.env
+ios/.xcode.env.local
+
+*.xcuserstate
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+ios/xcuserdata/
+
+# --- Android ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.cxx/
+
+*.iml
+*.hprof
+*.keystore
+!android/app/debug.keystore
+
+# --- Ruby / CocoaPods ---
+vendor/bundle/
+
+# --- Fastlane ---
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# --- Watchman ---
+.watchmanconfig
+
+# --- IDE ---
+.idea/
+.vscode/
