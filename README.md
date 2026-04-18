@@ -13,7 +13,9 @@ Minimal, production-ready backend architecture.
 ## Architecture
 
 ```
-/src              → application (NestJS API + React frontend)
+/src/backend      → NestJS API
+/src/frontend     → React (Vite)
+/src/mobile       → React Native
 Dockerfile        → runtime
 buildspec.yml     → CI/CD (CodeBuild)
 /infrastructure   → deployment (Terraform + Cloudflare)
