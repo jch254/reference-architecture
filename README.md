@@ -74,5 +74,4 @@ Starts the app, DynamoDB Local, and creates the table automatically.
 ## Usage
 
 - used as a reference architecture, not a product
-- copied as `/example-project` for new apps
-- reused for systems like GTD
+- copied and adapted for new apps

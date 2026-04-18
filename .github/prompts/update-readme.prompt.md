@@ -143,8 +143,7 @@ NO details.
 #### Usage
 
 - used as a reference architecture
-- copied as /example-project for new apps
-- reused for systems like GTD
+- copied and adapted for new apps
 
 ---
 
