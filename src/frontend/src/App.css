@@ -93,6 +93,13 @@ body {
   margin-bottom: var(--space-md);
 }
 
+/* ── Auth bar ── */
+.auth-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
 /* ── Form ── */
 .create-form {
   display: flex;

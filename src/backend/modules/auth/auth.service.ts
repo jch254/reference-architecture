@@ -117,6 +117,71 @@ export class AuthService {
     return true;
   }
 
+  async issueApiToken(email: string, tenantSlug: string): Promise<string | null> {
+    const normalisedEmail = email.toLowerCase().trim();
+
+    // Check if tenant has an admin
+    const admin = await this.getAdmin(tenantSlug);
+
+    if (!admin) {
+      // First visit — register this email as tenant admin
+      await this.createAdmin(tenantSlug, normalisedEmail);
+    } else if (admin.email !== normalisedEmail) {
+      // Email doesn't match admin — reject silently
+      return null;
+    }
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenId = randomBytes(16).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + config.sessionMaxAgeDays * 24 * 60 * 60 * 1000);
+    const now = new Date().toISOString();
+
+    await this.dynamoDb.putItem(this.tableName, {
+      ...Keys.apiToken(tenantSlug, tokenId),
+      entityType: 'API_TOKEN',
+      tokenHash,
+      email: normalisedEmail,
+      tenantSlug,
+      expiresAt: expiresAt.toISOString(),
+      ttl: Math.floor(expiresAt.getTime() / 1000) + 300,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    this.logger.log(`API token issued for ${normalisedEmail} in tenant ${tenantSlug}`);
+    return rawToken;
+  }
+
+  async validateApiToken(rawToken: string, tenantSlug: string): Promise<{ email: string; tenantSlug: string } | null> {
+    const tokenHash = this.hashToken(rawToken);
+
+    const records = await this.dynamoDb.query<{
+      PK: string;
+      SK: string;
+      tokenHash: string;
+      email: string;
+      tenantSlug: string;
+      expiresAt: string;
+    }>(
+      this.tableName,
+      'PK = :pk AND begins_with(SK, :skPrefix)',
+      { ':pk': `TENANT#${tenantSlug}`, ':skPrefix': 'API_TOKEN#' },
+    );
+
+    const record = records.find((r) => r.tokenHash === tokenHash);
+    if (!record) return null;
+
+    if (new Date(record.expiresAt) < new Date()) return null;
+    if (record.tenantSlug !== tenantSlug) return null;
+
+    // Verify email is still the tenant admin
+    const admin = await this.getAdmin(tenantSlug);
+    if (!admin || admin.email !== record.email) return null;
+
+    return { email: record.email, tenantSlug: record.tenantSlug };
+  }
+
   private async getAdmin(tenantSlug: string): Promise<TenantAdminRecord | null> {
     return this.dynamoDb.getItem<TenantAdminRecord>(
       this.tableName,

@@ -100,4 +100,22 @@ export class AuthController {
     }
     return { email: req.user.email, tenantSlug: req.user.tenantSlug };
   }
+
+  @Public()
+  @Post('token')
+  async token(
+    @Body('email') email: string,
+    @Req() req: Request,
+  ): Promise<{ token: string }> {
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      throw new UnauthorizedException('Invalid email');
+    }
+
+    const token = await this.authService.issueApiToken(email, req.tenantSlug);
+    if (!token) {
+      throw new UnauthorizedException();
+    }
+
+    return { token };
+  }
 }

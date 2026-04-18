@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import './App.css';
-import { api, ApiError } from './api/api-client';
+import { api, ApiError, getToken, setToken, clearToken } from './api/api-client';
 
 interface Example {
   id: string;
@@ -12,6 +12,10 @@ interface Example {
 const tenant = window.location.hostname.split('.')[0];
 
 export function App() {
+  const [authenticated, setAuthenticated] = useState(!!getToken());
+  const [email, setEmail] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [examples, setExamples] = useState<Example[]>([]);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,13 +30,45 @@ export function App() {
       setRawResponse(JSON.stringify({ data }, null, 2));
       setError(null);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        clearToken();
+        setAuthenticated(false);
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Failed to fetch examples');
     }
   };
 
   useEffect(() => {
-    fetchExamples();
-  }, []);
+    if (authenticated) {
+      fetchExamples();
+    }
+  }, [authenticated]);
+
+  const handleLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const res = await api.post<{ token: string }>('/api/auth/token', { email: email.trim() });
+      setToken(res.token);
+      setAuthenticated(true);
+      setEmail('');
+    } catch (err) {
+      setLoginError(err instanceof ApiError ? err.message : 'Login failed');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearToken();
+    setAuthenticated(false);
+    setExamples([]);
+    setRawResponse('');
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -71,8 +107,31 @@ export function App() {
 
       <hr className="section-divider" />
 
-      <section className="section">
-        <h2 className="section-header">Create Example</h2>
+      {!authenticated ? (
+        <section className="section">
+          <h2 className="section-header">Sign In</h2>
+          <form onSubmit={handleLogin} className="create-form">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="create-input"
+            />
+            <button type="submit" disabled={loginLoading} className="btn btn-primary">
+              {loginLoading ? 'Signing in…' : 'Sign In'}
+            </button>
+          </form>
+          {loginError && <p className="error-message">{loginError}</p>}
+        </section>
+      ) : (
+        <>
+          <div className="auth-bar">
+            <button onClick={handleLogout} className="btn btn-ghost">Sign Out</button>
+          </div>
+
+          <section className="section">
+            <h2 className="section-header">Create Example</h2>
         <form onSubmit={handleSubmit} className="create-form">
           <input
             type="text"
@@ -124,6 +183,8 @@ export function App() {
         </button>
         {showRaw && <pre className="raw-block">{rawResponse}</pre>}
       </div>
+        </>
+      )}
     </div>
   );
 }

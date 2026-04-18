@@ -14,6 +14,20 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_KEY = 'api_token';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -23,11 +37,14 @@ interface RequestOptions {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options;
 
+  const token = getToken();
+
   const init: RequestInit = {
     method,
     credentials: 'include',
     headers: {
       ...(body !== undefined && { 'Content-Type': 'application/json' }),
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...headers,
     },
     ...(body !== undefined && { body: JSON.stringify(body) }),

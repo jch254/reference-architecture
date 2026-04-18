@@ -24,6 +24,21 @@ export class AuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<Request>();
+
+    // Try Bearer token first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const rawToken = authHeader.slice(7);
+      const identity = await this.authService.validateApiToken(rawToken, req.tenantSlug);
+      if (!identity) throw new UnauthorizedException();
+
+      req.user = identity;
+      const store = requestContextStore.getStore();
+      if (store) store.user = identity;
+      return true;
+    }
+
+    // Fall back to signed cookie
     const payloadStr = req.signedCookies?.['__session'];
 
     if (!payloadStr || typeof payloadStr !== 'string') {
