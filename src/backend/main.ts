@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new ApiExceptionFilter());
 
   // Serve frontend static files
-  const frontendPath = join(__dirname, '..', 'frontend', 'dist');
+  const frontendPath = join(__dirname, '..', '..', 'frontend', 'dist');
   app.use(express.static(frontendPath));
 
   // SPA fallback: non-API routes serve index.html

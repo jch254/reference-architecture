@@ -327,6 +327,8 @@ resource "aws_ecs_task_definition" "main" {
     Name        = var.name
     Environment = var.environment
   }
+
+  depends_on = [aws_iam_role_policy.ecs_execution_ssm]
 }
 
 # ECS Service
