@@ -22,7 +22,7 @@ export function App() {
   const fetchExamples = async () => {
     try {
       const data = await api.get<Example[]>('/api/example');
-      setExamples(data);
+      setExamples([...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setRawResponse(JSON.stringify({ data }, null, 2));
       setError(null);
     } catch (err) {
