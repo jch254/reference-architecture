@@ -1,17 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ScreenLayout, Typography } from '../components';
 
 export default function SettingsScreen() {
   return (
-    <View style={styles.container}>
-      <Text>Settings</Text>
-    </View>
+    <ScreenLayout>
+      <Typography variant="title">Settings</Typography>
+    </ScreenLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
