@@ -52,4 +52,5 @@ Include only if the change affects architecture, data flow, or behavior.
 
 ## Output
 
+
 Output ONLY the commit message. No explanations, no markdown formatting, no code fences.

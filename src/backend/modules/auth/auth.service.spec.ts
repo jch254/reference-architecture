@@ -37,8 +37,40 @@ describe('AuthService — token isolation', () => {
   });
 
   describe('issueApiToken', () => {
-    it('should issue a token for a new tenant (auto-registers admin)', async () => {
-      mockDb.getItem.mockResolvedValue(null); // no admin yet
+    it('should reject when no admin exists (no auto-creation)', async () => {
+      mockDb.getItem.mockResolvedValue(null); // no admin
+
+      await expect(service.issueApiToken('admin@tenant-a.com', 'tenant-a')).rejects.toThrow('No admin record found');
+
+      // No putItem calls — no admin creation, no token creation
+      expect(mockDb.putItem).not.toHaveBeenCalled();
+    });
+
+    it('should issue a token for any user when admin exists', async () => {
+      mockDb.getItem.mockResolvedValue({
+        PK: 'TENANT#tenant-a',
+        SK: 'TENANT_ADMIN',
+        email: 'admin@tenant-a.com',
+        tenantSlug: 'tenant-a',
+      });
+
+      const token = await service.issueApiToken('other-user@example.com', 'tenant-a');
+
+      expect(token).toBeTruthy();
+      expect(typeof token).toBe('string');
+      expect(token!.length).toBe(64);
+      expect(mockDb.putItem).toHaveBeenCalledTimes(1);
+      expect(storedItems[0].entityType).toBe('API_TOKEN');
+      expect(storedItems[0].email).toBe('other-user@example.com');
+    });
+
+    it('should issue a token for an existing admin with matching email', async () => {
+      mockDb.getItem.mockResolvedValue({
+        PK: 'TENANT#tenant-a',
+        SK: 'TENANT_ADMIN',
+        email: 'admin@tenant-a.com',
+        tenantSlug: 'tenant-a',
+      });
 
       const token = await service.issueApiToken('admin@tenant-a.com', 'tenant-a');
 
@@ -46,49 +78,12 @@ describe('AuthService — token isolation', () => {
       expect(typeof token).toBe('string');
       expect(token!.length).toBe(64); // 32 bytes hex
 
-      // Should have created admin + API token = 2 putItem calls
-      expect(mockDb.putItem).toHaveBeenCalledTimes(2);
-
-      const adminItem = storedItems.find((i) => i.entityType === 'TENANT_ADMIN');
-      expect(adminItem).toBeDefined();
-      expect(adminItem!.PK).toBe('TENANT#tenant-a');
-      expect(adminItem!.email).toBe('admin@tenant-a.com');
-
-      const tokenItem = storedItems.find((i) => i.entityType === 'API_TOKEN');
-      expect(tokenItem).toBeDefined();
-      expect(tokenItem!.PK).toBe('TENANT#tenant-a');
-      expect(tokenItem!.email).toBe('admin@tenant-a.com');
-      expect(tokenItem!.tokenHash).toBe(hashToken(token!));
-    });
-
-    it('should issue a token for an existing admin', async () => {
-      mockDb.getItem.mockResolvedValue({
-        PK: 'TENANT#tenant-a',
-        SK: 'TENANT_ADMIN',
-        email: 'admin@tenant-a.com',
-        tenantSlug: 'tenant-a',
-      });
-
-      const token = await service.issueApiToken('admin@tenant-a.com', 'tenant-a');
-
-      expect(token).toBeTruthy();
       // Only API token created, no admin creation
       expect(mockDb.putItem).toHaveBeenCalledTimes(1);
       expect(storedItems[0].entityType).toBe('API_TOKEN');
-    });
-
-    it('should reject token issuance for non-admin email', async () => {
-      mockDb.getItem.mockResolvedValue({
-        PK: 'TENANT#tenant-a',
-        SK: 'TENANT_ADMIN',
-        email: 'admin@tenant-a.com',
-        tenantSlug: 'tenant-a',
-      });
-
-      const token = await service.issueApiToken('intruder@evil.com', 'tenant-a');
-
-      expect(token).toBeNull();
-      expect(mockDb.putItem).not.toHaveBeenCalled();
+      expect(storedItems[0].PK).toBe('TENANT#tenant-a');
+      expect(storedItems[0].email).toBe('admin@tenant-a.com');
+      expect(storedItems[0].tokenHash).toBe(hashToken(token!));
     });
 
     it('should normalise email to lowercase', async () => {
@@ -188,54 +183,6 @@ describe('AuthService — token isolation', () => {
       expect(result).toBeNull();
     });
 
-    it('should reject a token if admin email no longer matches', async () => {
-      const rawToken = randomBytes(32).toString('hex');
-      const tokenHash = hashToken(rawToken);
-
-      mockDb.query.mockResolvedValue([
-        {
-          PK: 'TENANT#tenant-a',
-          SK: 'API_TOKEN#abc123',
-          tokenHash,
-          email: tenantAEmail,
-          tenantSlug: 'tenant-a',
-          expiresAt: new Date(Date.now() + 86400000).toISOString(),
-        },
-      ]);
-      // Admin changed to a different email
-      mockDb.getItem.mockResolvedValue({
-        PK: 'TENANT#tenant-a',
-        SK: 'TENANT_ADMIN',
-        email: 'new-admin@tenant-a.com',
-        tenantSlug: 'tenant-a',
-      });
-
-      const result = await service.validateApiToken(rawToken, 'tenant-a');
-
-      expect(result).toBeNull();
-    });
-
-    it('should reject a token if admin record was deleted', async () => {
-      const rawToken = randomBytes(32).toString('hex');
-      const tokenHash = hashToken(rawToken);
-
-      mockDb.query.mockResolvedValue([
-        {
-          PK: 'TENANT#tenant-a',
-          SK: 'API_TOKEN#abc123',
-          tokenHash,
-          email: tenantAEmail,
-          tenantSlug: 'tenant-a',
-          expiresAt: new Date(Date.now() + 86400000).toISOString(),
-        },
-      ]);
-      mockDb.getItem.mockResolvedValue(null); // admin deleted
-
-      const result = await service.validateApiToken(rawToken, 'tenant-a');
-
-      expect(result).toBeNull();
-    });
-
     it('should not match a token with a different hash', async () => {
       const rawToken = randomBytes(32).toString('hex');
       const differentToken = randomBytes(32).toString('hex');
@@ -260,12 +207,22 @@ describe('AuthService — token isolation', () => {
   describe('multi-tenant token isolation', () => {
     it('tokens issued for tenant-a and tenant-b should be fully isolated', async () => {
       // --- Issue token for tenant-a ---
-      mockDb.getItem.mockResolvedValueOnce(null); // no admin yet
+      mockDb.getItem.mockResolvedValueOnce({
+        PK: 'TENANT#tenant-a',
+        SK: 'TENANT_ADMIN',
+        email: 'admin@a.com',
+        tenantSlug: 'tenant-a',
+      });
       const tokenA = await service.issueApiToken('admin@a.com', 'tenant-a');
       expect(tokenA).toBeTruthy();
 
       // --- Issue token for tenant-b ---
-      mockDb.getItem.mockResolvedValueOnce(null); // no admin yet
+      mockDb.getItem.mockResolvedValueOnce({
+        PK: 'TENANT#tenant-b',
+        SK: 'TENANT_ADMIN',
+        email: 'admin@b.com',
+        tenantSlug: 'tenant-b',
+      });
       const tokenB = await service.issueApiToken('admin@b.com', 'tenant-b');
       expect(tokenB).toBeTruthy();
 

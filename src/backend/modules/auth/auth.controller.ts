@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Logger, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 import { config } from '../../common/config';
@@ -7,6 +7,8 @@ import { Public } from './auth.guard';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   @Public()
@@ -23,62 +25,105 @@ export class AuthController {
     if (secret && secret === config.cookieSecret) {
       const token = await this.authService.requestLink(email, req.tenantSlug, true);
       if (!token) throw new UnauthorizedException();
+      this.logger.log(`request-link issued (suppressed) for ${email} in tenant ${req.tenantSlug}`);
       return { token };
     }
 
     await this.authService.requestLink(email, req.tenantSlug);
+    this.logger.log(`request-link issued for ${email} in tenant ${req.tenantSlug}`);
     return { message: 'If that email is valid, a link has been sent.' };
   }
 
   @Public()
   @Get('verify')
   async verify(
-    @Query('t') token: string,
+    @Query('token') token: string,
     @Query('json') json: string,
+    @Query('web') web: string,
+    @Query('email') emailParam: string,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+
     if (!token) {
       if (json === '1') {
-        res.status(400).json({ error: 'Missing token' });
+        res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Missing token' } });
       } else {
         res.redirect('/?auth=error');
       }
       return;
     }
 
-    try {
-      const session = await this.authService.verify(token, req.tenantSlug);
-      const payload = JSON.stringify({
-        email: session.email,
-        tenantSlug: session.tenantSlug,
-        sessionVersion: session.sessionVersion,
-        iat: Date.now(),
-      });
+    // Mobile / API: consume the OTP and return a bearer token
+    if (json === '1') {
+      try {
+        const session = await this.authService.verify(token, req.tenantSlug);
 
-      const isLocal = config.baseDomain === 'localhost';
+        // Also set a session cookie for web clients
+        const payload = JSON.stringify({
+          email: session.email,
+          tenantSlug: session.tenantSlug,
+          sessionVersion: session.sessionVersion,
+          iat: Date.now(),
+        });
 
-      res.cookie('__session', payload, {
-        signed: true,
-        httpOnly: true,
-        secure: !isLocal,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: config.sessionMaxAgeDays * 24 * 60 * 60 * 1000,
-      });
+        const isLocal = config.baseDomain === 'localhost';
 
-      if (json === '1') {
-        res.json({ ok: true });
-      } else {
-        res.redirect('/');
+        res.cookie('__session', payload, {
+          signed: true,
+          httpOnly: true,
+          secure: !isLocal,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: config.sessionMaxAgeDays * 24 * 60 * 60 * 1000,
+        });
+
+        // Issue a bearer token so mobile clients don't need a separate call
+        const bearerToken = await this.authService.issueApiToken(session.email, req.tenantSlug);
+        this.logger.log(`verify success (json) for ${session.email} in tenant ${req.tenantSlug}`);
+        res.json({ data: { ok: true, token: bearerToken } });
+      } catch (err) {
+        this.logger.warn(`verify failure (json) in tenant ${req.tenantSlug}: ${err instanceof Error ? err.message : 'unknown'}`);
+        res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } });
       }
-    } catch {
-      if (json === '1') {
-        res.status(401).json({ error: 'Invalid or expired token' });
-      } else {
+      return;
+    }
+
+    // Web browser: consume the OTP, set session cookie, redirect to app
+    if (web === '1') {
+      try {
+        const session = await this.authService.verify(token, req.tenantSlug);
+        const payload = JSON.stringify({
+          email: session.email,
+          tenantSlug: session.tenantSlug,
+          sessionVersion: session.sessionVersion,
+          iat: Date.now(),
+        });
+
+        const isLocal = config.baseDomain === 'localhost';
+
+        res.cookie('__session', payload, {
+          signed: true,
+          httpOnly: true,
+          secure: !isLocal,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: config.sessionMaxAgeDays * 24 * 60 * 60 * 1000,
+        });
+
+        this.logger.log(`verify success (web) for ${session.email} in tenant ${req.tenantSlug}`);
+        res.redirect('/');
+      } catch (err) {
+        this.logger.warn(`verify failure (web) in tenant ${req.tenantSlug}: ${err instanceof Error ? err.message : 'unknown'}`);
         res.redirect('/?auth=error');
       }
+      return;
     }
+
+    // Browser fallback: 302 redirect to app deep link without consuming the token
+    const email = emailParam || '';
+    const appLink = `referenceapp://auth/verify?token=${encodeURIComponent(token)}${email ? `&email=${encodeURIComponent(email)}` : ''}`;
+    res.redirect(302, appLink);
   }
 
   @Post('logout')
@@ -99,23 +144,5 @@ export class AuthController {
       throw new UnauthorizedException();
     }
     return { email: req.user.email, tenantSlug: req.user.tenantSlug };
-  }
-
-  @Public()
-  @Post('token')
-  async token(
-    @Body('email') email: string,
-    @Req() req: Request,
-  ): Promise<{ token: string }> {
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      throw new UnauthorizedException('Invalid email');
-    }
-
-    const token = await this.authService.issueApiToken(email, req.tenantSlug);
-    if (!token) {
-      throw new UnauthorizedException();
-    }
-
-    return { token };
   }
 }

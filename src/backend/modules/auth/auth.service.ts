@@ -1,5 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { Resend } from 'resend';
 
 import { config } from '../../common/config';
@@ -60,18 +60,25 @@ export class AuthService {
       { ':pk': `TENANT#${tenantSlug}`, ':skPrefix': 'AUTH_TOKEN#' },
     );
 
-    const record = records.find((r) => r.tokenHash === tokenHash);
+    const tokenHashBuf = Buffer.from(tokenHash);
+    const record = records.find((r) => {
+      const stored = Buffer.from(r.tokenHash);
+      return stored.length === tokenHashBuf.length && timingSafeEqual(stored, tokenHashBuf);
+    });
 
     if (!record) {
+      this.logger.warn(`Verify failed: invalid token for tenant ${tenantSlug}`);
       throw new UnauthorizedException('Invalid or expired link');
     }
 
     if (new Date(record.expiresAt) < new Date()) {
       await this.dynamoDb.deleteItem(this.tableName, Keys.authToken(tenantSlug, record.email));
+      this.logger.warn(`Verify failed: expired token for ${record.email} in tenant ${tenantSlug}`);
       throw new UnauthorizedException('Invalid or expired link');
     }
 
     if (record.tenantSlug !== tenantSlug) {
+      this.logger.warn(`Verify failed: tenant mismatch for ${record.email}`);
       throw new UnauthorizedException('Invalid or expired link');
     }
 
@@ -87,6 +94,7 @@ export class AuthService {
       { ':sv': sessionVersion, ':ua': new Date().toISOString() },
     );
 
+    this.logger.log(`Verify success for ${record.email} in tenant ${tenantSlug}`);
     return { email: record.email, tenantSlug: record.tenantSlug, sessionVersion };
   }
 
@@ -96,17 +104,33 @@ export class AuthService {
     const maxAge = config.sessionMaxAgeDays * 24 * 60 * 60 * 1000;
     if (Date.now() - payload.iat > maxAge) return false;
 
+    if (!payload.sessionVersion) {
+      this.logger.warn(`Session rejected: missing sessionVersion for ${payload.email}`);
+      return false;
+    }
+
+    const admin = await this.getAdmin(requestTenantSlug);
+    if (!admin) {
+      this.logger.warn(`Session rejected: no admin record for tenant ${requestTenantSlug}`);
+      return false;
+    }
+
+    if (payload.sessionVersion !== admin.sessionVersion) {
+      this.logger.warn(`Session rejected: stale sessionVersion for ${payload.email}`);
+      return false;
+    }
+
     return true;
   }
 
-  async issueApiToken(email: string, tenantSlug: string): Promise<string | null> {
+  async issueApiToken(email: string, tenantSlug: string): Promise<string> {
     const normalisedEmail = email.toLowerCase().trim();
 
-    // Ensure tenant has an admin record (first user bootstraps it)
     const admin = await this.getAdmin(tenantSlug);
 
     if (!admin) {
-      await this.createAdmin(tenantSlug, normalisedEmail);
+      this.logger.warn(`API token rejected: no admin record for tenant ${tenantSlug}`);
+      throw new UnauthorizedException('No admin record found');
     }
 
     const rawToken = randomBytes(32).toString('hex');
@@ -196,18 +220,21 @@ export class AuthService {
     });
 
     const protocol = config.baseDomain === 'localhost' ? 'http' : 'https';
-    const port = config.baseDomain === 'localhost' ? `:${config.port}` : '';
-    const link = `${protocol}://${tenantSlug}.${config.baseDomain}${port}/api/auth/verify?t=${rawToken}`;
-    const appLink = `referenceapp://auth/verify?t=${rawToken}&email=${encodeURIComponent(email)}`;
+    const host = config.baseDomain === 'localhost'
+      ? `localhost:${config.port}`
+      : `${tenantSlug}.${config.baseDomain}`;
+    // Web link opens the deep-link redirect page (NOT the API endpoint)
+    const webLink = `${protocol}://${host}/auth/verify?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(email)}`;
+    const appLink = `referenceapp://auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
     if (suppressEmail) {
-      this.logger.log(`[suppressed] Email suppressed (escape hatch) — magic link for ${email}: ${link}`);
+      this.logger.log(`[suppressed] Email suppressed (escape hatch) — app link for ${email}: ${appLink}`);
       return rawToken;
     }
 
     switch (config.emailMode) {
       case 'noop':
-        this.logger.log(`[noop] Email suppressed — magic link for ${email}: ${link}`);
+        this.logger.log(`[noop] Email suppressed — app link for ${email}: ${appLink}`);
         break;
 
       case 'redirect': {
@@ -217,7 +244,7 @@ export class AuthService {
             from: config.resendFromEmail,
             to: redirectTo,
             subject: `[REDIRECT] Sign-in link for ${email}`,
-            html: `<p><strong>Originally for:</strong> ${email}</p><p><a href="${link}">${link}</a></p><p>Open in app: <a href="${appLink}">${appLink}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
+            html: `<p><strong>Originally for:</strong> ${email}</p><p style="margin:24px 0"><a href="${webLink}" style="background:#007AFF;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Open in App</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
           });
           if (error) {
             this.logger.error(`Failed to send redirected magic link email: ${error.name} - ${error.message}`);
@@ -235,7 +262,7 @@ export class AuthService {
             from: config.resendFromEmail,
             to: email,
             subject: 'Your sign-in link',
-            html: `<p>Click to sign in:</p><p><a href="${link}">${link}</a></p><p>Or open in app: <a href="${appLink}">${appLink}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
+            html: `<p>Tap the button below to sign in:</p><p style="margin:24px 0"><a href="${webLink}" style="background:#007AFF;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Open in App</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
           });
           if (error) {
             this.logger.error(`Failed to send magic link email to ${email}: ${error.name} - ${error.message}`);

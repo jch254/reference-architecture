@@ -36,7 +36,7 @@ export default function VerifyScreen({ route }: Props) {
       <Spacer size={8} />
       <Typography variant="body">A sign-in link was sent to {email}.</Typography>
       <Spacer size={4} />
-      <Typography variant="caption">Copy the token from the link (?t=...) and paste it below.</Typography>
+      <Typography variant="caption">Tap the link in the email to sign in automatically, or paste the token below.</Typography>
       <Spacer size={24} />
       <TextInput
         style={styles.input}

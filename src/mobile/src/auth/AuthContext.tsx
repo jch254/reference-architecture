@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Linking } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { api, clearToken, getToken, setToken, setOnUnauthorized, setPendingEmail, getPendingEmail, clearPendingEmail } from '../api';
 
 interface AuthContextValue {
@@ -57,32 +57,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const verifyAndSignIn = useCallback(async (userEmail: string, otp: string) => {
-    await api.get(`/api/auth/verify?t=${encodeURIComponent(otp)}&json=1`);
-    const { token } = await api.post<{ token: string }>('/api/auth/token', { email: userEmail });
-    await setToken(token);
+    const { token: bearerToken } = await api.get<{ ok: boolean; token: string }>(
+      `/api/auth/verify?token=${encodeURIComponent(otp)}&json=1`,
+    );
+    await setToken(bearerToken);
     await clearPendingEmail();
     setEmail(userEmail);
     setIsAuthenticated(true);
   }, []);
 
+  // Handle deep link auth: referenceapp://auth/verify?token=X&email=Y
+  // new URL('referenceapp://auth/verify?token=X') → host='auth', pathname='/verify'
   useEffect(() => {
     const handleUrl = async (url: string) => {
       try {
+        console.log('[DeepLink] URL:', url);
         const parsed = new URL(url);
-        const otp = parsed.searchParams.get('t');
+        console.log('[DeepLink] host:', parsed.host, 'pathname:', parsed.pathname);
+        if (parsed.host !== 'auth' || parsed.pathname !== '/verify') return;
+        const otp = parsed.searchParams.get('token');
+        console.log('[DeepLink] token:', otp ? '(present)' : '(missing)');
         if (!otp) return;
-        const pendingEmail = parsed.searchParams.get('email') ?? await getPendingEmail();
-        if (!pendingEmail) return;
-        await verifyAndSignIn(pendingEmail, otp);
+        const linkEmail = parsed.searchParams.get('email') ?? await getPendingEmail();
+        console.log('[DeepLink] email:', linkEmail ?? '(missing)');
+        if (!linkEmail) return;
+        console.log('[DeepLink] calling verifyAndSignIn...');
+        await verifyAndSignIn(linkEmail, otp);
+        console.log('[DeepLink] AUTH SUCCESS');
       } catch (err) {
-        console.error('Deep link auth failed', err);
+        console.error('[DeepLink] auth failed', err);
+        Alert.alert('Sign-in failed', 'The link may have expired. Please request a new one.');
       }
     };
 
+    // Cold start
     Linking.getInitialURL().then((url) => {
       if (url) handleUrl(url);
     });
 
+    // App already running
     const sub = Linking.addEventListener('url', (e) => handleUrl(e.url));
     return () => sub.remove();
   }, [verifyAndSignIn]);
