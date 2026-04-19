@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = 'api_token';
+const PENDING_EMAIL_KEY = 'pending_auth_email';
 
 export async function getToken(): Promise<string | null> {
   return AsyncStorage.getItem(TOKEN_KEY);
@@ -12,4 +13,16 @@ export async function setToken(token: string): Promise<void> {
 
 export async function clearToken(): Promise<void> {
   await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+export async function setPendingEmail(email: string): Promise<void> {
+  await AsyncStorage.setItem(PENDING_EMAIL_KEY, email);
+}
+
+export async function getPendingEmail(): Promise<string | null> {
+  return AsyncStorage.getItem(PENDING_EMAIL_KEY);
+}
+
+export async function clearPendingEmail(): Promise<void> {
+  await AsyncStorage.removeItem(PENDING_EMAIL_KEY);
 }

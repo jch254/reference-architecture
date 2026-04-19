@@ -198,6 +198,7 @@ export class AuthService {
     const protocol = config.baseDomain === 'localhost' ? 'http' : 'https';
     const port = config.baseDomain === 'localhost' ? `:${config.port}` : '';
     const link = `${protocol}://${tenantSlug}.${config.baseDomain}${port}/api/auth/verify?t=${rawToken}`;
+    const appLink = `referenceapp://auth/verify?t=${rawToken}&email=${encodeURIComponent(email)}`;
 
     if (suppressEmail) {
       this.logger.log(`[suppressed] Email suppressed (escape hatch) — magic link for ${email}: ${link}`);
@@ -216,7 +217,7 @@ export class AuthService {
             from: config.resendFromEmail,
             to: redirectTo,
             subject: `[REDIRECT] Sign-in link for ${email}`,
-            html: `<p><strong>Originally for:</strong> ${email}</p><p><a href="${link}">${link}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
+            html: `<p><strong>Originally for:</strong> ${email}</p><p><a href="${link}">${link}</a></p><p>Open in app: <a href="${appLink}">${appLink}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
           });
           if (error) {
             this.logger.error(`Failed to send redirected magic link email: ${error.name} - ${error.message}`);
@@ -234,7 +235,7 @@ export class AuthService {
             from: config.resendFromEmail,
             to: email,
             subject: 'Your sign-in link',
-            html: `<p>Click to sign in:</p><p><a href="${link}">${link}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
+            html: `<p>Click to sign in:</p><p><a href="${link}">${link}</a></p><p>Or open in app: <a href="${appLink}">${appLink}</a></p><p>This link expires in ${config.authTokenExpiryMinutes} minutes.</p>`,
           });
           if (error) {
             this.logger.error(`Failed to send magic link email to ${email}: ${error.name} - ${error.message}`);

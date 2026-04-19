@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, clearToken, getToken, setToken, setOnUnauthorized } from '../api';
+import { Linking } from 'react-native';
+import { api, clearToken, getToken, setToken, setOnUnauthorized, setPendingEmail, getPendingEmail, clearPendingEmail } from '../api';
 
 interface AuthContextValue {
   isAuthenticated: boolean;
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const requestLink = useCallback(async (userEmail: string) => {
+    await setPendingEmail(userEmail);
     await api.post<{ message: string }>('/api/auth/request-link', { email: userEmail });
   }, []);
 
@@ -58,9 +60,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.get(`/api/auth/verify?t=${encodeURIComponent(otp)}&json=1`);
     const { token } = await api.post<{ token: string }>('/api/auth/token', { email: userEmail });
     await setToken(token);
+    await clearPendingEmail();
     setEmail(userEmail);
     setIsAuthenticated(true);
   }, []);
+
+  useEffect(() => {
+    const handleUrl = async (url: string) => {
+      try {
+        const parsed = new URL(url);
+        const otp = parsed.searchParams.get('t');
+        if (!otp) return;
+        const pendingEmail = parsed.searchParams.get('email') ?? await getPendingEmail();
+        if (!pendingEmail) return;
+        await verifyAndSignIn(pendingEmail, otp);
+      } catch (err) {
+        console.error('Deep link auth failed', err);
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl(url);
+    });
+
+    const sub = Linking.addEventListener('url', (e) => handleUrl(e.url));
+    return () => sub.remove();
+  }, [verifyAndSignIn]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, isLoading, email, requestLink, verifyAndSignIn, signOut }}>
