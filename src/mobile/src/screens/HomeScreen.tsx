@@ -1,4 +1,4 @@
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenLayout, Typography, Button, Spacer } from '../components';
 import { useSession, useExamples } from '../api';
@@ -11,7 +11,14 @@ export default function HomeScreen({ navigation }: Props) {
   const examples = useExamples();
 
   return (
-    <ScreenLayout>
+    <ScreenLayout
+      refreshControl={
+        <RefreshControl
+          refreshing={examples.isRefetching}
+          onRefresh={() => examples.refetch()}
+        />
+      }
+    >
       <Typography variant="title">Home</Typography>
       <Spacer size={16} />
 
