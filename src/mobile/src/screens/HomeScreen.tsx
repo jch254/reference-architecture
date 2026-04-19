@@ -1,6 +1,6 @@
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScreenLayout, Typography, Spacer } from '../components';
+import { ScreenLayout, Typography, Button, Spacer } from '../components';
 import { useSession, useExamples } from '../api';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -27,7 +27,10 @@ export default function HomeScreen({ navigation }: Props) {
       ) : null}
 
       <Spacer size={24} />
-      <Typography variant="title">Examples</Typography>
+      <View style={styles.sectionHeader}>
+        <Typography variant="title">Examples</Typography>
+        <Button title="+" onPress={() => navigation.navigate('ExampleCreate')} />
+      </View>
       <Spacer size={8} />
 
       {examples.isLoading ? (
@@ -61,6 +64,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
     padding: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   item: {
     flexDirection: 'row',
