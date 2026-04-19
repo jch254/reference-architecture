@@ -88,7 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[DeepLink] AUTH SUCCESS');
       } catch (err) {
         console.error('[DeepLink] auth failed', err);
-        Alert.alert('Sign-in failed', 'The link may have expired. Please request a new one.');
+        Alert.alert(
+          'Sign-in failed',
+          'This link may have already been used or expired. If you signed in via the browser, you\u2019re all set there. Otherwise, please request a new link.',
+        );
       }
     };
 

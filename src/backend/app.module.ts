@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { RequestContextMiddleware } from './common/context/request-context.middleware';
 import { TenantMiddleware } from './common/context/tenant.middleware';
@@ -13,6 +14,10 @@ import { ExampleModule } from './modules/example/example.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60_000,
+      limit: 10,
+    }]),
     DynamoDbModule,
     AuthModule,
     ExampleModule,

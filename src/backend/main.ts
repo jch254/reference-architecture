@@ -84,7 +84,7 @@ async function bootstrap(): Promise<void> {
   <p class="muted">Don&rsquo;t have the app? Use Continue in Browser above.</p>
   <p class="muted">Or copy this token and paste it in the app:</p>
   <p class="token">${htmlToken}</p>
-  <script>setTimeout(function(){window.location.href=${safeDeepLink}},100)</script>
+  <script>setTimeout(function(){window.location.href=${safeDeepLink}},0)</script>
 </body>
 </html>`);
   });

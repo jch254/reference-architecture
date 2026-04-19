@@ -67,7 +67,7 @@ export class AuthService {
     });
 
     if (!record) {
-      this.logger.warn(`Verify failed: invalid token for tenant ${tenantSlug}`);
+      this.logger.warn(`Verify failed: token not found (consumed or invalid) for tenant ${tenantSlug}`);
       throw new UnauthorizedException('Invalid or expired link');
     }
 
@@ -171,7 +171,11 @@ export class AuthService {
       { ':pk': `TENANT#${tenantSlug}`, ':skPrefix': 'API_TOKEN#' },
     );
 
-    const record = records.find((r) => r.tokenHash === tokenHash);
+    const tokenHashBuf = Buffer.from(tokenHash);
+    const record = records.find((r) => {
+      const stored = Buffer.from(r.tokenHash);
+      return stored.length === tokenHashBuf.length && timingSafeEqual(stored, tokenHashBuf);
+    });
     if (!record) return null;
 
     if (new Date(record.expiresAt) < new Date()) return null;
@@ -224,8 +228,8 @@ export class AuthService {
       ? `localhost:${config.port}`
       : `${tenantSlug}.${config.baseDomain}`;
     // Web link opens the deep-link redirect page (NOT the API endpoint)
-    const webLink = `${protocol}://${host}/auth/verify?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(email)}`;
-    const appLink = `referenceapp://auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}`;
+    const webLink = `${protocol}://${host}/auth/verify?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(email)}&source=email`;
+    const appLink = `referenceapp://auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}&source=email`;
 
     if (suppressEmail) {
       this.logger.log(`[suppressed] Email suppressed (escape hatch) — app link for ${email}: ${appLink}`);

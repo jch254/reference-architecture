@@ -32,10 +32,18 @@ export function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('auth') === 'error') {
-      setAuthError('Your sign-in link was invalid or has expired. Please request a new one.');
+      const reason = params.get('reason');
+      setAuthError(
+        reason === 'consumed'
+          ? 'This sign-in link has already been used. If you signed in on another device, you\u2019re all set there. Otherwise, please request a new link.'
+          : 'Your sign-in link was invalid or has expired. Please request a new one.',
+      );
       setAuthState('unauthenticated');
       window.history.replaceState({}, '', window.location.pathname);
       return;
+    }
+    if (params.get('auth') === 'success') {
+      window.history.replaceState({}, '', window.location.pathname);
     }
     api
       .get<{ email: string; tenantSlug: string }>('/api/auth/session')

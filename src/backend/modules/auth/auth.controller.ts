@@ -1,9 +1,36 @@
-import { Body, Controller, Get, Headers, Logger, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpException, Logger, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { createHash } from 'crypto';
 import { Request, Response } from 'express';
 
 import { config } from '../../common/config';
 import { AuthService } from './auth.service';
 import { Public } from './auth.guard';
+
+// Per-email rate limiter (complements per-IP throttling from @nestjs/throttler)
+const emailRateMap = new Map<string, { count: number; resetAt: number }>();
+const EMAIL_RATE_LIMIT = 3;
+const EMAIL_RATE_WINDOW = 60_000;
+
+function checkEmailRate(ip: string, email: string): boolean {
+  const key = createHash('sha256').update(`${ip}:${email.toLowerCase().trim()}`).digest('hex');
+  const now = Date.now();
+  const entry = emailRateMap.get(key);
+  if (!entry || now > entry.resetAt) {
+    emailRateMap.set(key, { count: 1, resetAt: now + EMAIL_RATE_WINDOW });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= EMAIL_RATE_LIMIT;
+}
+
+// Periodic cleanup of stale entries (every 5 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of emailRateMap) {
+    if (now > entry.resetAt) emailRateMap.delete(key);
+  }
+}, 5 * 60_000).unref();
 
 @Controller('auth')
 export class AuthController {
@@ -12,6 +39,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('request-link')
   async requestLink(
     @Body('email') email: string,
@@ -20,6 +48,11 @@ export class AuthController {
   ): Promise<{ message: string } | { token: string }> {
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return { message: 'If that email is valid, a link has been sent.' };
+    }
+
+    if (!checkEmailRate(req.ip ?? 'unknown', email)) {
+      this.logger.warn(`request-link rate limited (ip+email) for ${email} in tenant ${req.tenantSlug}`);
+      throw new HttpException('Too Many Requests', 429);
     }
 
     if (secret && secret === config.cookieSecret) {
@@ -35,6 +68,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Get('verify')
   async verify(
     @Query('token') token: string,
@@ -112,10 +146,10 @@ export class AuthController {
         });
 
         this.logger.log(`verify success (web) for ${session.email} in tenant ${req.tenantSlug}`);
-        res.redirect('/');
+        res.redirect('/?auth=success');
       } catch (err) {
         this.logger.warn(`verify failure (web) in tenant ${req.tenantSlug}: ${err instanceof Error ? err.message : 'unknown'}`);
-        res.redirect('/?auth=error');
+        res.redirect('/?auth=error&reason=consumed');
       }
       return;
     }
