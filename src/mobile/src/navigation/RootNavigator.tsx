@@ -7,9 +7,11 @@ import ExampleDetailScreen from '../screens/ExampleDetailScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
+import VerifyScreen from '../screens/VerifyScreen';
 
 export type RootStackParamList = {
   SignIn: undefined;
+  Verify: { email: string };
   Home: undefined;
   ExampleCreate: undefined;
   ExampleDetail: { id: string; name: string };
@@ -50,7 +52,10 @@ export default function RootNavigator() {
             <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         ) : (
-          <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
+          <>
+            <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
+            <Stack.Screen name="Verify" component={VerifyScreen} options={{ title: 'Verify Email' }} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

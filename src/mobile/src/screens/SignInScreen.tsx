@@ -1,24 +1,30 @@
 import { useState } from 'react';
 import { Alert, TextInput, StyleSheet } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenLayout, Typography, Button, Spacer } from '../components';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
-export default function SignInScreen() {
-  const { signIn } = useAuth();
+type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
+
+export default function SignInScreen({ navigation }: Props) {
+  const { requestLink } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleRequestLink = async () => {
     if (!email.includes('@')) {
       Alert.alert('Invalid email');
       return;
     }
+    const normalised = email.trim().toLowerCase();
     setLoading(true);
     try {
-      await signIn(email.trim().toLowerCase());
+      await requestLink(normalised);
+      navigation.navigate('Verify', { email: normalised });
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Sign in failed';
+      const message = err instanceof ApiError ? err.message : 'Failed to send link';
       Alert.alert('Error', message);
     } finally {
       setLoading(false);
@@ -39,7 +45,7 @@ export default function SignInScreen() {
         onChangeText={setEmail}
       />
       <Spacer />
-      <Button title={loading ? 'Signing in…' : 'Sign In'} onPress={handleSignIn} disabled={loading} />
+      <Button title={loading ? 'Sending…' : 'Send Link'} onPress={handleRequestLink} disabled={loading} />
     </ScreenLayout>
   );
 }

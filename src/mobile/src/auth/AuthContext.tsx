@@ -5,7 +5,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   email: string | null;
-  signIn: (email: string) => Promise<void>;
+  requestLink: (email: string) => Promise<void>;
+  verifyAndSignIn: (email: string, otp: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -49,7 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const signIn = useCallback(async (userEmail: string) => {
+  const requestLink = useCallback(async (userEmail: string) => {
+    await api.post<{ message: string }>('/api/auth/request-link', { email: userEmail });
+  }, []);
+
+  const verifyAndSignIn = useCallback(async (userEmail: string, otp: string) => {
+    await api.get(`/api/auth/verify?t=${encodeURIComponent(otp)}&json=1`);
     const { token } = await api.post<{ token: string }>('/api/auth/token', { email: userEmail });
     await setToken(token);
     setEmail(userEmail);
@@ -57,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, email, signIn, signOut }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, email, requestLink, verifyAndSignIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
