@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api-client';
 
+interface Session {
+  email: string;
+  tenantSlug: string;
+}
+
 interface Example {
   id: string;
   name: string;
@@ -8,7 +13,15 @@ interface Example {
   updatedAt: string;
 }
 
+const SESSION_KEY = ['session'] as const;
 const EXAMPLES_KEY = ['examples'] as const;
+
+export function useSession() {
+  return useQuery({
+    queryKey: SESSION_KEY,
+    queryFn: () => api.get<Session>('/api/auth/session'),
+  });
+}
 
 export function useExamples() {
   return useQuery({
