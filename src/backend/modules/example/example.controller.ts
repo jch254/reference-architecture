@@ -4,7 +4,9 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
 } from '@nestjs/common';
@@ -41,6 +43,23 @@ export class ExampleController {
   async listExamples(@Req() req: Request) {
     const examples = await this.exampleService.listExamples(req.user!.tenantSlug);
     return examples;
+  }
+
+  @Patch('example/:id')
+  async updateExample(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: { name: string },
+  ) {
+    if (!body.name) throw new BadRequestException('name is required');
+
+    const example = await this.exampleService.updateExample(
+      req.user!.tenantSlug,
+      id,
+      body.name,
+    );
+    if (!example) throw new NotFoundException('Example not found');
+    return example;
   }
 
   @Delete('example/:id')

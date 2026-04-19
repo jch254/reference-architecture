@@ -23,6 +23,8 @@ export function App() {
   const [examples, setExamples] = useState<Example[]>([]);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const [showRaw, setShowRaw] = useState(false);
   const [rawResponse, setRawResponse] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +131,31 @@ export function App() {
       setError(null);
     } catch (err) {
       const msg = handleApiError(err, 'Failed to delete example');
+      if (msg) setError(msg);
+    }
+  };
+
+  const startEdit = (ex: Example) => {
+    setEditingId(ex.id);
+    setEditingName(ex.name);
+    setError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const handleUpdate = async (id: string) => {
+    if (!editingName.trim()) return;
+    try {
+      await api.patch(`/api/example/${id}`, { name: editingName.trim() });
+      setEditingId(null);
+      setEditingName('');
+      await fetchExamples();
+      setError(null);
+    } catch (err) {
+      const msg = handleApiError(err, 'Failed to update example');
       if (msg) setError(msg);
     }
   };
@@ -241,11 +268,34 @@ export function App() {
                 {examples.map((ex) => (
                   <div className="example-row" key={ex.id}>
                     <span className="example-cell example-cell-id">{ex.id}</span>
-                    <span className="example-cell">{ex.name}</span>
+                    {editingId === ex.id ? (
+                      <span className="example-cell example-cell-edit">
+                        <input
+                          className="edit-input"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleUpdate(ex.id);
+                            if (e.key === 'Escape') cancelEdit();
+                          }}
+                          autoFocus
+                        />
+                      </span>
+                    ) : (
+                      <span className="example-cell">{ex.name}</span>
+                    )}
                     <span className="example-cell">{ex.createdAt}</span>
-                    <button className="btn-delete" onClick={() => handleDelete(ex.id)}>
-                      Delete
-                    </button>
+                    {editingId === ex.id ? (
+                      <span className="example-cell-actions">
+                        <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(ex.id)}>Save</button>
+                        <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>Cancel</button>
+                      </span>
+                    ) : (
+                      <span className="example-cell-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(ex)}>Edit</button>
+                        <button className="btn-delete" onClick={() => handleDelete(ex.id)}>Delete</button>
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

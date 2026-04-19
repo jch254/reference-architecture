@@ -81,6 +81,29 @@ export class ExampleService {
     return items.map((item) => this.toExample(item));
   }
 
+  async updateExample(
+    tenantSlug: string,
+    id: string,
+    name: string,
+  ): Promise<Example | null> {
+    const tenantId = tenantSlug;
+    const keys = Keys.tenantEntity(tenantId, 'EXAMPLE', id);
+    const now = new Date().toISOString();
+
+    const updated = await this.dynamoDb.updateItem<ExampleEntity>(
+      this.tableName,
+      keys,
+      'SET #name = :name, updatedAt = :updatedAt',
+      { ':name': name, ':updatedAt': now },
+      { '#name': 'name' },
+    );
+
+    if (!updated) return null;
+
+    this.logger.log(`Updated example ${id} for tenant ${tenantId}`);
+    return this.toExample(updated);
+  }
+
   async deleteExample(tenantSlug: string, id: string): Promise<void> {
     const tenantId = tenantSlug;
     const keys = Keys.tenantEntity(tenantId, 'EXAMPLE', id);
