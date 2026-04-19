@@ -71,14 +71,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleUrl = async (url: string) => {
       try {
-        console.log('[DeepLink] URL:', url);
-        const parsed = new URL(url);
-        console.log('[DeepLink] host:', parsed.host, 'pathname:', parsed.pathname);
-        if (parsed.host !== 'auth' || parsed.pathname !== '/verify') return;
-        const otp = parsed.searchParams.get('token');
+        console.log('[DeepLink] RAW URL:', url);
+        if (!url.includes('auth/verify')) return;
+
+        const tokenMatch = url.match(/token=([^&]+)/);
+        const emailMatch = url.match(/email=([^&]+)/);
+
+        const otp = tokenMatch?.[1];
         console.log('[DeepLink] token:', otp ? '(present)' : '(missing)');
         if (!otp) return;
-        const linkEmail = parsed.searchParams.get('email') ?? await getPendingEmail();
+        const linkEmail = emailMatch?.[1] ? decodeURIComponent(emailMatch[1]) : await getPendingEmail();
         console.log('[DeepLink] email:', linkEmail ?? '(missing)');
         if (!linkEmail) return;
         console.log('[DeepLink] calling verifyAndSignIn...');
