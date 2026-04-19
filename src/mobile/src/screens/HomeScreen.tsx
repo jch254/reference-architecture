@@ -1,8 +1,12 @@
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenLayout, Typography, Spacer } from '../components';
 import { useSession, useExamples } from '../api';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
-export default function HomeScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+
+export default function HomeScreen({ navigation }: Props) {
   const session = useSession();
   const examples = useExamples();
 
@@ -36,9 +40,13 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           scrollEnabled={false}
           renderItem={({ item }) => (
-            <View style={styles.item}>
+            <Pressable
+              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+              onPress={() => navigation.navigate('ExampleDetail', { id: item.id, name: item.name })}
+            >
               <Typography variant="body">{item.name}</Typography>
-            </View>
+              <Typography variant="caption">{'›'}</Typography>
+            </Pressable>
           )}
         />
       ) : (
@@ -55,8 +63,14 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   item: {
-    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ccc',
+  },
+  itemPressed: {
+    opacity: 0.6,
   },
 });

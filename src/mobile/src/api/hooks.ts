@@ -30,6 +30,14 @@ export function useExamples() {
   });
 }
 
+export function useExample(id: string) {
+  return useQuery({
+    queryKey: [...EXAMPLES_KEY, id],
+    queryFn: () => api.get<Example[]>('/api/example'),
+    select: (data) => data.find((item) => item.id === id),
+  });
+}
+
 export function useCreateExample() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -2,6 +2,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
+import ExampleDetailScreen from '../screens/ExampleDetailScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
@@ -9,6 +10,7 @@ import SignInScreen from '../screens/SignInScreen';
 export type RootStackParamList = {
   SignIn: undefined;
   Home: undefined;
+  ExampleDetail: { id: string; name: string };
   Settings: undefined;
 };
 
@@ -31,6 +33,7 @@ export default function RootNavigator() {
         {isAuthenticated ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="ExampleDetail" component={ExampleDetailScreen} options={({ route }) => ({ title: route.params.name })} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         ) : (

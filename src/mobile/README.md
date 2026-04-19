@@ -43,7 +43,32 @@ The project includes a `.ruby-version` file pinning `3.3.11` — rbenv picks thi
 
 # Running locally
 
+## Step 0: Start the backend
+
+The app connects to the backend API at `http://localhost:3000` in development. It must be running before you can sign in or load any data.
+
+From the repo root:
+
+```sh
+docker-compose up
+```
+
+Or without Docker:
+
+```sh
+# from repo root
+pnpm --filter backend start:dev
+```
+
+Verify it is up:
+
+```sh
+curl http://localhost:3000/api/health
+```
+
 ## Step 1: Install JS and Ruby dependencies
+
+> **Important:** `bundle install` must use the rbenv-managed Ruby, not the macOS system Ruby. If you get a `Could not find 'bundler'` error, rbenv is not initialised in your current shell — run `eval "$(rbenv init -)"` first, or add it to your shell profile as shown in the setup section above.
 
 ```sh
 pnpm install
@@ -68,7 +93,7 @@ Open a second terminal and run:
 ```sh
 pnpm ios
 # or target a specific simulator:
-pnpm ios --simulator "iPhone 16"
+pnpm ios --simulator "iPhone 17"
 ```
 
 ### Android
@@ -91,5 +116,7 @@ To force a full reload:
 - _"active developer directory is a command line tools instance"_ — run the `xcode-select --switch` command in the setup section above.
 - _"iOS devices or simulators not detected"_ — the iOS simulator runtime has not been downloaded; run `xcodebuild -downloadPlatform iOS` or install it via Xcode → Settings → Platforms.
 - _"Failed to build gem native extension"_ on `bundle install` — you are using the system Ruby. Install rbenv and Ruby 3.3 as described above.
+- _`Could not find 'bundler' (2.x.x)`_ on `bundle install` — rbenv is installed but not initialised in the current shell. Run `eval "$(rbenv init -)"` or open a new terminal after adding it to your shell profile.
+- _"Network request failed"_ in the simulator — the backend is not running. Start it with `docker-compose up` from the repo root (see Step 0 above).
 - Pods out of date after pulling: `cd ios && bundle exec pod install`
 - See the [React Native Troubleshooting](https://reactnative.dev/docs/troubleshooting) page for further help.
