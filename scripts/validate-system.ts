@@ -40,7 +40,7 @@ async function validate() {
 
     if (!token) throw new Error(`No token in response: ${JSON.stringify(linkBody)}`);
 
-    const verifyRes = await fetch(url(`/api/auth/verify?t=${encodeURIComponent(token)}&json=1`));
+    const verifyRes = await fetch(url(`/api/auth/verify?token=${encodeURIComponent(token)}&json=1`));
 
     if (!verifyRes.ok) throw new Error(`Verify failed with status ${verifyRes.status}`);
 
