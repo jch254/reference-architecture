@@ -39,9 +39,10 @@ export class ExampleController {
     return example;
   }
 
+  @Public()
   @Get('example')
   async listExamples(@Req() req: Request) {
-    const examples = await this.exampleService.listExamples(req.user!.tenantSlug);
+    const examples = await this.exampleService.listExamples(req.tenantSlug);
     return examples;
   }
 

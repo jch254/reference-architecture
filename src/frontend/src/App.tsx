@@ -72,12 +72,12 @@ export function App() {
   const handleApiError = useCallback(
     (err: unknown, fallback: string): string | null => {
       if (err instanceof ApiError && err.status === 401) {
-        logout();
+        if (authState === 'authenticated') logout();
         return null;
       }
       return err instanceof ApiError ? err.message : fallback;
     },
-    [logout],
+    [logout, authState],
   );
 
   const fetchExamples = useCallback(async () => {
@@ -93,7 +93,7 @@ export function App() {
   }, [handleApiError]);
 
   useEffect(() => {
-    if (authState === 'authenticated') {
+    if (authState === 'authenticated' || authState === 'unauthenticated') {
       fetchExamples();
     }
   }, [authState, fetchExamples]);
@@ -260,56 +260,64 @@ export function App() {
           </section>
 
           <hr className="section-divider" />
+        </>
+      )}
 
-          <section className="section">
-            <h2 className="section-header">Examples</h2>
-            {examples.length === 0 ? (
-              <p className="empty-state">No examples yet.</p>
-            ) : (
-              <div className="example-list">
-                <div className="example-header">
-                  <span>ID</span>
-                  <span>Name</span>
-                  <span>Created</span>
-                  <span></span>
-                </div>
-                {examples.map((ex) => (
-                  <div className="example-row" key={ex.id}>
-                    <span className="example-cell example-cell-id">{ex.id}</span>
-                    {editingId === ex.id ? (
-                      <span className="example-cell example-cell-edit">
-                        <input
-                          className="edit-input"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleUpdate(ex.id);
-                            if (e.key === 'Escape') cancelEdit();
-                          }}
-                          autoFocus
-                        />
-                      </span>
-                    ) : (
-                      <span className="example-cell">{ex.name}</span>
-                    )}
-                    <span className="example-cell">{ex.createdAt}</span>
-                    {editingId === ex.id ? (
-                      <span className="example-cell-actions">
-                        <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(ex.id)}>Save</button>
-                        <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>Cancel</button>
-                      </span>
-                    ) : (
-                      <span className="example-cell-actions">
+      <section className="section">
+        <h2 className="section-header">Examples</h2>
+        {examples.length === 0 ? (
+          <p className="empty-state">No examples yet.</p>
+        ) : (
+          <div className="example-list">
+            <div className="example-header">
+              <span>ID</span>
+              <span>Name</span>
+              <span>Created</span>
+              <span></span>
+            </div>
+            {examples.map((ex) => (
+              <div className="example-row" key={ex.id}>
+                <span className="example-cell example-cell-id">{ex.id}</span>
+                {editingId === ex.id ? (
+                  <span className="example-cell example-cell-edit">
+                    <input
+                      className="edit-input"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleUpdate(ex.id);
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      autoFocus
+                    />
+                  </span>
+                ) : (
+                  <span className="example-cell">{ex.name}</span>
+                )}
+                <span className="example-cell">{ex.createdAt}</span>
+                {editingId === ex.id ? (
+                  <span className="example-cell-actions">
+                    <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(ex.id)}>Save</button>
+                    <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>Cancel</button>
+                  </span>
+                ) : (
+                  <span className="example-cell-actions">
+                    {authState === 'authenticated' && (
+                      <>
                         <button className="btn btn-ghost btn-sm" onClick={() => startEdit(ex)}>Edit</button>
                         <button className="btn-delete" onClick={() => handleDelete(ex.id)}>Delete</button>
-                      </span>
+                      </>
                     )}
-                  </div>
-                ))}
+                  </span>
+                )}
               </div>
-            )}
-          </section>
+            ))}
+          </div>
+        )}
+      </section>
 
+      {authState === 'authenticated' && (
+        <>
           <hr className="section-divider" />
 
           <div className="raw-toggle">
