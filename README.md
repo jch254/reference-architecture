@@ -34,6 +34,7 @@ buildspec.yml     → CI/CD (CodeBuild)
 - `GET    /api/health`
 - `GET    /api/example`
 - `POST   /api/example`
+- `PATCH  /api/example/:id`
 - `DELETE /api/example/:id`
 
 ## Deployment
