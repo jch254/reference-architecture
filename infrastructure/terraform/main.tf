@@ -163,146 +163,92 @@ module "dynamodb_single_table" {
   }
 }
 
-# ECS Cluster
-resource "aws_ecs_cluster" "main" {
-  name = "${var.name}-cluster"
+# ECS Fargate runtime
+module "ecs_fargate_service" {
+  source = "github.com/jch254/terraform-modules//ecs-fargate-service?ref=1.2.0"
 
-  setting {
-    name  = "containerInsights"
-    value = "disabled"
-  }
+  name               = var.name
+  environment        = var.environment
+  cluster_name       = "${var.name}-cluster"
+  service_name       = "${var.name}-service"
+  task_family        = var.name
+  container_name     = var.name
+  image              = "${module.ecr_repository.repository_url}:${var.image_tag}"
+  cpu                = var.container_cpu
+  memory             = var.container_memory
+  execution_role_arn = module.app_runtime_iam.execution_role_arn
+  task_role_arn      = module.app_runtime_iam.task_role_arn
 
-  tags = {
-    Name        = "${var.name}-cluster"
-    Environment = var.environment
-  }
-}
+  container_port    = 3000
+  host_port         = 3000
+  log_group_name    = module.app_log_group.name
+  log_region        = var.region
+  log_stream_prefix = "ecs"
 
-# ECS Task Definition
-resource "aws_ecs_task_definition" "main" {
-  family                   = var.name
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.container_cpu
-  memory                   = var.container_memory
-  execution_role_arn       = module.app_runtime_iam.execution_role_arn
-  task_role_arn            = module.app_runtime_iam.task_role_arn
-
-  runtime_platform {
-    operating_system_family = "LINUX"
-    cpu_architecture        = "X86_64"
-  }
-
-  container_definitions = jsonencode([
+  environment_variables = [
     {
-      name  = var.name
-      image = "${module.ecr_repository.repository_url}:${var.image_tag}"
-
-      portMappings = [
-        {
-          containerPort = 3000
-          hostPort      = 3000
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = module.app_log_group.name
-          "awslogs-region"        = var.region
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-
-      environment = [
-        {
-          name  = "PORT"
-          value = "3000"
-        },
-        {
-          name  = "DYNAMODB_TABLE"
-          value = module.dynamodb_single_table.table_name
-        },
-        {
-          name  = "AWS_REGION"
-          value = var.region
-        },
-        {
-          name  = "BASE_DOMAIN"
-          value = var.cloudflare_domain
-        },
-        {
-          name  = "RESEND_FROM_EMAIL"
-          value = var.resend_from_email
-        }
-      ]
-
-      secrets = [
-        {
-          name      = "COOKIE_SECRET"
-          valueFrom = aws_ssm_parameter.cookie_secret.arn
-        },
-        {
-          name      = "RESEND_API_KEY"
-          valueFrom = aws_ssm_parameter.resend_api_key.arn
-        }
-      ]
-
-      healthCheck = {
-        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
-        interval    = 15
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
-
-      essential = true
+      name  = "PORT"
+      value = "3000"
+    },
+    {
+      name  = "DYNAMODB_TABLE"
+      value = module.dynamodb_single_table.table_name
+    },
+    {
+      name  = "AWS_REGION"
+      value = var.region
+    },
+    {
+      name  = "BASE_DOMAIN"
+      value = var.cloudflare_domain
+    },
+    {
+      name  = "RESEND_FROM_EMAIL"
+      value = var.resend_from_email
     }
-  ])
+  ]
+
+  secrets = [
+    {
+      name      = "COOKIE_SECRET"
+      valueFrom = aws_ssm_parameter.cookie_secret.arn
+    },
+    {
+      name      = "RESEND_API_KEY"
+      valueFrom = aws_ssm_parameter.resend_api_key.arn
+    }
+  ]
+
+  health_check = {
+    command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+    interval    = 15
+    timeout     = 5
+    retries     = 3
+    startPeriod = 60
+  }
+
+  essential = true
+
+  subnet_ids           = data.aws_subnets.public.ids
+  security_group_id    = module.app_security_groups.ecs_security_group_id
+  assign_public_ip     = true
+  cloudmap_service_arn = module.cloudmap_private_service.service_arn
+
+  desired_count                       = 1
+  deployment_minimum_healthy_percent  = 100
+  deployment_maximum_percent          = 200
+  health_check_grace_period_seconds   = 60
+  deployment_circuit_breaker_enable   = true
+  deployment_circuit_breaker_rollback = true
+  container_insights                  = "disabled"
+  operating_system_family             = "LINUX"
+  cpu_architecture                    = "X86_64"
 
   tags = {
-    Name        = var.name
     Environment = var.environment
   }
 
   depends_on = [module.app_runtime_iam]
-}
-
-# ECS Service
-resource "aws_ecs_service" "main" {
-  name            = "${var.name}-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  deployment_minimum_healthy_percent = 100
-  deployment_maximum_percent         = 200
-
-  # Wait for the new task to pass container health checks before the scheduler
-  # considers it healthy — prevents draining the old task too early.
-  health_check_grace_period_seconds = 60
-
-  deployment_circuit_breaker {
-    enable   = true
-    rollback = true
-  }
-
-  network_configuration {
-    security_groups  = [module.app_security_groups.ecs_security_group_id]
-    subnets          = data.aws_subnets.public.ids
-    assign_public_ip = true
-  }
-
-  service_registries {
-    registry_arn = module.cloudmap_private_service.service_arn
-    port         = 3000
-  }
-
-  tags = {
-    Name        = "${var.name}-service"
-    Environment = var.environment
-  }
 }
 
 # CloudWatch Log Group
@@ -671,8 +617,8 @@ module "codebuild_project" {
     { name = "AWS_ACCOUNT_ID", value = data.aws_caller_identity.current.account_id },
     { name = "IMAGE_REPO_NAME", value = module.ecr_repository.repository_name },
     { name = "IMAGE_TAG", value = var.image_tag },
-    { name = "CLUSTER_NAME", value = aws_ecs_cluster.main.name },
-    { name = "SERVICE_NAME", value = aws_ecs_service.main.name },
+    { name = "CLUSTER_NAME", value = module.ecs_fargate_service.cluster_name },
+    { name = "SERVICE_NAME", value = module.ecs_fargate_service.service_name },
     { name = "CLOUDFLARE_DOMAIN", value = var.cloudflare_domain },
     { name = "CLOUDFLARE_SUBDOMAIN", value = var.cloudflare_subdomain },
   ]

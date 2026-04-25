@@ -67,3 +67,18 @@ moved {
   from = aws_service_discovery_service.main
   to   = module.cloudmap_private_service.aws_service_discovery_service.main
 }
+
+moved {
+  from = aws_ecs_cluster.main
+  to   = module.ecs_fargate_service.aws_ecs_cluster.main
+}
+
+moved {
+  from = aws_ecs_task_definition.main
+  to   = module.ecs_fargate_service.aws_ecs_task_definition.main
+}
+
+moved {
+  from = aws_ecs_service.main
+  to   = module.ecs_fargate_service.aws_ecs_service.main
+}
