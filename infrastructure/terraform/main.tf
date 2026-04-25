@@ -775,95 +775,40 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 }
 
 # CodeBuild Project
-resource "aws_codebuild_project" "main" {
-  name         = var.name
-  description  = "Build project for ${var.name}"
-  service_role = aws_iam_role.codebuild_role.arn
+module "codebuild_project" {
+  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-project?ref=1.1.1"
 
-  artifacts {
-    type = "NO_ARTIFACTS"
-  }
+  name                        = var.name
+  description                 = "Build project for ${var.name}"
+  codebuild_role_arn          = aws_iam_role.codebuild_role.arn
+  build_compute_type          = var.build_compute_type
+  build_docker_image          = var.build_docker_image
+  build_docker_tag            = var.build_docker_tag
+  privileged_mode             = true
+  image_pull_credentials_type = "CODEBUILD"
+  source_type                 = var.source_type
+  source_location             = var.source_location
+  buildspec                   = var.buildspec
+  git_clone_depth             = 1
+  cache_bucket                = var.cache_bucket
+  badge_enabled               = false
+  create_log_group            = false
+  webhook_enabled             = true
 
-  environment {
-    compute_type                = var.build_compute_type
-    image                       = "${var.build_docker_image}:${var.build_docker_tag}"
-    type                        = "LINUX_CONTAINER"
-    image_pull_credentials_type = "CODEBUILD"
-    privileged_mode             = true
-
-    environment_variable {
-      name  = "AWS_DEFAULT_REGION"
-      value = var.region
-    }
-
-    environment_variable {
-      name  = "AWS_ACCOUNT_ID"
-      value = data.aws_caller_identity.current.account_id
-    }
-
-    environment_variable {
-      name  = "IMAGE_REPO_NAME"
-      value = module.ecr_repository.repository_name
-    }
-
-    environment_variable {
-      name  = "IMAGE_TAG"
-      value = var.image_tag
-    }
-
-    environment_variable {
-      name  = "CLUSTER_NAME"
-      value = aws_ecs_cluster.main.name
-    }
-
-    environment_variable {
-      name  = "SERVICE_NAME"
-      value = aws_ecs_service.main.name
-    }
-
-    environment_variable {
-      name  = "CLOUDFLARE_DOMAIN"
-      value = var.cloudflare_domain
-    }
-
-    environment_variable {
-      name  = "CLOUDFLARE_SUBDOMAIN"
-      value = var.cloudflare_subdomain
-    }
-  }
-
-  source {
-    type            = var.source_type
-    location        = var.source_location
-    buildspec       = var.buildspec
-    git_clone_depth = 1
-  }
-
-  cache {
-    type     = "S3"
-    location = var.cache_bucket
-  }
+  environment_variables = [
+    { name = "AWS_DEFAULT_REGION", value = var.region },
+    { name = "AWS_ACCOUNT_ID", value = data.aws_caller_identity.current.account_id },
+    { name = "IMAGE_REPO_NAME", value = module.ecr_repository.repository_name },
+    { name = "IMAGE_TAG", value = var.image_tag },
+    { name = "CLUSTER_NAME", value = aws_ecs_cluster.main.name },
+    { name = "SERVICE_NAME", value = aws_ecs_service.main.name },
+    { name = "CLOUDFLARE_DOMAIN", value = var.cloudflare_domain },
+    { name = "CLOUDFLARE_SUBDOMAIN", value = var.cloudflare_subdomain },
+  ]
 
   tags = {
     Name        = "${var.name}-codebuild"
     Environment = var.environment
-  }
-}
-
-resource "aws_codebuild_webhook" "main" {
-  project_name = aws_codebuild_project.main.name
-  build_type   = "BUILD"
-
-  filter_group {
-    filter {
-      type    = "EVENT"
-      pattern = "PUSH"
-    }
-
-    filter {
-      type    = "HEAD_REF"
-      pattern = "refs/heads/main"
-    }
   }
 }
 
@@ -1009,7 +954,7 @@ resource "aws_cloudwatch_event_rule" "build_notifications" {
     detail-type = ["CodeBuild Build State Change"]
     detail = {
       build-status = ["SUCCEEDED", "FAILED"]
-      project-name = [aws_codebuild_project.main.name]
+      project-name = [module.codebuild_project.project_name]
     }
   })
 
