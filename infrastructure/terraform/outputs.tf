@@ -5,7 +5,7 @@ output "api_gateway_url" {
 
 output "dynamodb_table_name" {
   description = "Name of the DynamoDB entities table"
-  value       = aws_dynamodb_table.entities.name
+  value       = module.dynamodb_single_table.table_name
 }
 
 output "api_gateway_custom_domain_target" {

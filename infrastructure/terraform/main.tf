@@ -21,16 +21,12 @@ data "aws_subnets" "public" {
 }
 
 # ECR Repository
-resource "aws_ecr_repository" "main" {
-  name                 = var.name
-  image_tag_mutability = "MUTABLE"
+module "ecr_repository" {
+  source = "git::https://github.com/jch254/terraform-modules.git//ecr-repository?ref=1.1.0"
 
-  image_scanning_configuration {
-    scan_on_push = true
-  }
+  name = var.name
 
   tags = {
-    Name        = var.name
     Environment = var.environment
   }
 }
@@ -203,29 +199,12 @@ resource "aws_apigatewayv2_api_mapping" "main" {
 }
 
 # DynamoDB Table — single-table design
-resource "aws_dynamodb_table" "entities" {
-  name         = "${var.name}-entities"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+module "dynamodb_single_table" {
+  source = "git::https://github.com/jch254/terraform-modules.git//dynamodb-single-table?ref=1.1.0"
 
-  attribute {
-    name = "PK"
-    type = "S"
-  }
-
-  attribute {
-    name = "SK"
-    type = "S"
-  }
-
-  ttl {
-    attribute_name = "ttl"
-    enabled        = true
-  }
+  name = "${var.name}-entities"
 
   tags = {
-    Name        = "${var.name}-entities"
     Environment = var.environment
   }
 }
@@ -263,7 +242,7 @@ resource "aws_ecs_task_definition" "main" {
   container_definitions = jsonencode([
     {
       name  = var.name
-      image = "${aws_ecr_repository.main.repository_url}:${var.image_tag}"
+      image = "${module.ecr_repository.repository_url}:${var.image_tag}"
 
       portMappings = [
         {
@@ -288,7 +267,7 @@ resource "aws_ecs_task_definition" "main" {
         },
         {
           name  = "DYNAMODB_TABLE"
-          value = aws_dynamodb_table.entities.name
+          value = module.dynamodb_single_table.table_name
         },
         {
           name  = "AWS_REGION"
@@ -481,8 +460,8 @@ resource "aws_iam_role_policy" "ecs_task_dynamodb" {
           "dynamodb:DescribeTable"
         ]
         Resource = [
-          aws_dynamodb_table.entities.arn,
-          "${aws_dynamodb_table.entities.arn}/index/*"
+          module.dynamodb_single_table.table_arn,
+          "${module.dynamodb_single_table.table_arn}/index/*"
         ]
       }
     ]
@@ -560,7 +539,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "ecr:PutImageScanningConfiguration",
           "ecr:PutImageTagMutability"
         ]
-        Resource = aws_ecr_repository.main.arn
+        Resource = module.ecr_repository.repository_arn
       },
       {
         Effect = "Allow"
@@ -824,7 +803,7 @@ resource "aws_codebuild_project" "main" {
 
     environment_variable {
       name  = "IMAGE_REPO_NAME"
-      value = aws_ecr_repository.main.name
+      value = module.ecr_repository.repository_name
     }
 
     environment_variable {
