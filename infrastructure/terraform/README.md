@@ -6,12 +6,34 @@ ECS Fargate behind API Gateway HTTP API. No ALB — API Gateway connects directl
 
 ## Resources
 
-- ECS Fargate — single service, single container. Rolling deploys with circuit breaker.
-- API Gateway HTTP API — regional custom domain with ACM TLS cert. VPC Link to Cloud Map.
-- Cloud Map — private DNS namespace. ECS registers tasks automatically.
-- DynamoDB — single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, DeleteItem, Query.
-- CodeBuild — build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply. Post-deploy system validation.
+- ECS Fargate - single service, single container. Rolling deploys with circuit breaker.
+- API Gateway HTTP API - regional custom domain with ACM TLS cert. VPC Link to Cloud Map.
+- Cloud Map - private DNS namespace. ECS registers tasks automatically.
+- DynamoDB - single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, DeleteItem, Query.
+- CodeBuild - build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply. Post-deploy system validation.
 - `cloudflare/` — DNS layer. See [cloudflare/README.md](cloudflare/README.md).
+
+## Module boundary
+
+This scaffold consumes `jch254/terraform-modules` for the reusable core infrastructure primitives:
+
+- ECR repository
+- DynamoDB single table
+- CodeBuild project and webhook
+- CloudWatch app log group
+- ECS runtime IAM roles and policies
+- VPC Link and ECS security groups
+- Cloud Map private namespace and service
+- ECS Fargate cluster, task definition, and service
+- API Gateway HTTP API, VPC Link, Cloud Map integration, route, and stage
+
+The `terraform-modules` repository owns reusable primitives. This repository remains the runnable public reference scaffold: it chooses app-specific names, ports, domains, image tags, environment variables, secrets, service sizing, and deployment flow.
+
+Resources that are still application-specific or intentionally deferred remain local here, including the API Gateway custom domain and API mapping, ACM certificate, SSM parameters, build notification SNS/EventBridge/Lambda resources, and the Cloudflare DNS layer.
+
+Real app descendants such as Namaste, Lush, and future KHA can choose when to adopt these modules. They should treat this scaffold as a proven reference, not an automatic migration mandate.
+
+The `moved.tf` blocks are intentionally kept. They document the state-safe migration history and allow Terraform to preserve deployed resource identity when existing states are planned or applied against the modular configuration.
 
 ## Networking
 
