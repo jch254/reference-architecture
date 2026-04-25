@@ -7,7 +7,7 @@
 - **Mobile** (`/src/mobile`) — React Native client. Consumes the same API. Shares API types via `/src/shared`.
 - **Runtime** (`Dockerfile`) — Node.js container. Single process serves both API and frontend.
 - **CI/CD** (`buildspec.yml`) — CodeBuild. Build → Docker push → Terraform apply → Cloudflare DNS → system validation.
-- **Infrastructure** (`/infrastructure/terraform`) — ECS Fargate behind API Gateway HTTP API with custom domain. DynamoDB table (PAY_PER_REQUEST). Cloudflare for DNS + edge proxy.
+- **Infrastructure** (`/infrastructure/terraform`) — ECS Fargate behind API Gateway HTTP API with custom domain. DynamoDB table (PAY_PER_REQUEST). Cloudflare for DNS + edge proxy. Reusable primitives are composed from `jch254/terraform-modules`; app-specific configuration remains local.
 
 ## Design decisions
 
@@ -16,7 +16,7 @@
 - **Single-table DynamoDB** — all entities in one table. `PK = TENANT#<tenantId>`, `SK = <ENTITY_TYPE>#<entityId>`. No GSIs. No scans.
 - **Analytics** — append-only event tracking. Writes to same DynamoDB table (`PK = TENANT#<tenantId>`, `SK = EVENT#<ts>#<name>#<reqId>`). Resolves context via AsyncLocalStorage — callsites pass only event name. Non-blocking (failures logged, never thrown).
 - **Single container** — no ALB, no NAT gateway, no background workers. One container serves API (`/api/*`) and frontend (`/*`).
-- **Deterministic** — infrastructure fully described in Terraform. No manual steps after initial bootstrap.
+- **Deterministic** — infrastructure fully described in Terraform. AWS and Cloudflare are separate Terraform roots, with Cloudflare reading AWS outputs through remote state. No manual steps after initial bootstrap.
 - **Rolling deploys** — container health check + grace period ensures new task is healthy before old task is drained.
 
 ## Request flow

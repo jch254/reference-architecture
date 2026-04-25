@@ -26,10 +26,14 @@ This scaffold consumes `jch254/terraform-modules` for the reusable core infrastr
 - Cloud Map private namespace and service
 - ECS Fargate cluster, task definition, and service
 - API Gateway HTTP API, VPC Link, Cloud Map integration, route, and stage
+- ACM DNS-validated certificate
+- API Gateway custom domain and API mapping
 
 The `terraform-modules` repository owns reusable primitives. This repository remains the runnable public reference scaffold: it chooses app-specific names, ports, domains, image tags, environment variables, secrets, service sizing, and deployment flow.
 
-Resources that are still application-specific or intentionally deferred remain local here, including the API Gateway custom domain and API mapping, ACM certificate, SSM parameters, build notification SNS/EventBridge/Lambda resources, and the Cloudflare DNS layer.
+Resources that are still application-specific or intentionally deferred remain local here, including SSM parameters, build notification SNS/EventBridge/Lambda resources, deployment variables, and product-specific infrastructure such as SES, mail records, Cloudflare security rules, redirects, and tenant-routing choices.
+
+The Cloudflare Terraform root remains separate from this AWS root. It also consumes focused `terraform-modules` building blocks for ACM validation DNS records and the API CNAME record, while continuing to read this root's outputs through remote state.
 
 Real app descendants such as Namaste, Lush, and future KHA can choose when to adopt these modules. They should treat this scaffold as a proven reference, not an automatic migration mandate.
 
@@ -50,8 +54,8 @@ Public subnets only. ECS tasks get public IPs. VPC Link security group restricts
 
 ACM certificate requires DNS validation via Cloudflare, but Cloudflare depends on AWS outputs. First deploy requires targeted applies:
 
-1. `terraform apply -target=aws_acm_certificate.main` (AWS layer)
-2. `terraform apply -target=cloudflare_dns_record.acm_validation` (Cloudflare layer)
+1. `terraform apply -target=module.acm_certificate.aws_acm_certificate.main` (AWS layer)
+2. `terraform apply -target=module.acm_validation_records.cloudflare_dns_record.acm_validation` (Cloudflare layer)
 3. Wait for ACM validation
 4. Full apply on both layers
 

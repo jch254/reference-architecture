@@ -91,6 +91,8 @@ This architecture follows the core ideas of the [Twelve-Factor App](https://12fa
 
 Docker + CodeBuild + Terraform. Cloudflare for DNS.
 
+Reusable AWS and Cloudflare infrastructure primitives are composed from [`jch254/terraform-modules`](https://github.com/jch254/terraform-modules), while app-specific configuration stays local in this repo. The AWS and Cloudflare Terraform roots remain separate so DNS can continue to read AWS outputs through remote state.
+
 See [infrastructure/README.md](infrastructure/README.md) for details.
 
 ---
