@@ -22,3 +22,28 @@ moved {
   from = aws_cloudwatch_log_group.main
   to   = module.app_log_group.aws_cloudwatch_log_group.main
 }
+
+moved {
+  from = aws_iam_role.ecs_execution_role
+  to   = module.app_runtime_iam.aws_iam_role.ecs_execution_role
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.ecs_execution_role_policy
+  to   = module.app_runtime_iam.aws_iam_role_policy_attachment.ecs_execution_role_policy
+}
+
+moved {
+  from = aws_iam_role_policy.ecs_execution_ssm
+  to   = module.app_runtime_iam.aws_iam_role_policy.ecs_execution_ssm
+}
+
+moved {
+  from = aws_iam_role.ecs_task_role
+  to   = module.app_runtime_iam.aws_iam_role.ecs_task_role
+}
+
+moved {
+  from = aws_iam_role_policy.ecs_task_dynamodb
+  to   = module.app_runtime_iam.aws_iam_role_policy.ecs_task_dynamodb
+}

@@ -231,8 +231,8 @@ resource "aws_ecs_task_definition" "main" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.container_cpu
   memory                   = var.container_memory
-  execution_role_arn       = aws_iam_role.ecs_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  execution_role_arn       = module.app_runtime_iam.execution_role_arn
+  task_role_arn            = module.app_runtime_iam.task_role_arn
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -311,7 +311,7 @@ resource "aws_ecs_task_definition" "main" {
     Environment = var.environment
   }
 
-  depends_on = [aws_iam_role_policy.ecs_execution_ssm]
+  depends_on = [module.app_runtime_iam]
 }
 
 # ECS Service
@@ -365,110 +365,24 @@ module "app_log_group" {
   }
 }
 
-# IAM — ECS Execution Role
-resource "aws_iam_role" "ecs_execution_role" {
-  name = "${var.name}-ecs-execution-role"
+# IAM — ECS Runtime Roles
+module "app_runtime_iam" {
+  source = "github.com/jch254/terraform-modules//app-runtime-iam?ref=1.2.0"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
+  name        = var.name
+  environment = var.environment
+  region      = var.region
+
+  ssm_parameter_arns = [
+    aws_ssm_parameter.cookie_secret.arn,
+    aws_ssm_parameter.resend_api_key.arn,
+  ]
+
+  dynamodb_table_arn = module.dynamodb_single_table.table_arn
 
   tags = {
-    Name        = "${var.name}-ecs-execution-role"
     Environment = var.environment
   }
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
-  role       = aws_iam_role.ecs_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_role_policy" "ecs_execution_ssm" {
-  name = "${var.name}-ecs-execution-ssm"
-  role = aws_iam_role.ecs_execution_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = ["ssm:GetParameters"]
-        Resource = [
-          aws_ssm_parameter.cookie_secret.arn,
-          aws_ssm_parameter.resend_api_key.arn,
-        ]
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt"]
-        Resource = "*"
-        Condition = {
-          StringEquals = {
-            "kms:ViaService" = "ssm.${var.region}.amazonaws.com"
-          }
-        }
-      }
-    ]
-  })
-}
-
-# IAM — ECS Task Role
-resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.name}-ecs-task-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.name}-ecs-task-role"
-    Environment = var.environment
-  }
-}
-
-resource "aws_iam_role_policy" "ecs_task_dynamodb" {
-  name = "${var.name}-ecs-task-dynamodb"
-  role = aws_iam_role.ecs_task_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:DescribeTable"
-        ]
-        Resource = [
-          module.dynamodb_single_table.table_arn,
-          "${module.dynamodb_single_table.table_arn}/index/*"
-        ]
-      }
-    ]
-  })
 }
 
 # IAM — CodeBuild Role
