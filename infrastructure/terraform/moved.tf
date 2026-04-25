@@ -82,3 +82,28 @@ moved {
   from = aws_ecs_service.main
   to   = module.ecs_fargate_service.aws_ecs_service.main
 }
+
+moved {
+  from = aws_apigatewayv2_api.main
+  to   = module.http_api_cloudmap_proxy.aws_apigatewayv2_api.main
+}
+
+moved {
+  from = aws_apigatewayv2_vpc_link.main
+  to   = module.http_api_cloudmap_proxy.aws_apigatewayv2_vpc_link.main
+}
+
+moved {
+  from = aws_apigatewayv2_integration.main
+  to   = module.http_api_cloudmap_proxy.aws_apigatewayv2_integration.main
+}
+
+moved {
+  from = aws_apigatewayv2_route.main
+  to   = module.http_api_cloudmap_proxy.aws_apigatewayv2_route.main
+}
+
+moved {
+  from = aws_apigatewayv2_stage.main
+  to   = module.http_api_cloudmap_proxy.aws_apigatewayv2_stage.main
+}

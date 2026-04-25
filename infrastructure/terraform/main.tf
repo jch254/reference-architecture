@@ -65,49 +65,20 @@ module "cloudmap_private_service" {
 }
 
 # API Gateway HTTP API
-resource "aws_apigatewayv2_api" "main" {
-  name          = "${var.name}-api"
-  protocol_type = "HTTP"
+module "http_api_cloudmap_proxy" {
+  source = "github.com/jch254/terraform-modules//http-api-cloudmap-proxy?ref=1.2.0"
+
+  name                        = var.name
+  environment                 = var.environment
+  subnet_ids                  = data.aws_subnets.public.ids
+  vpc_link_security_group_ids = [module.app_security_groups.vpc_link_security_group_id]
+  cloudmap_service_arn        = module.cloudmap_private_service.service_arn
+  route_key                   = "$default"
+  stage_name                  = "$default"
+  auto_deploy                 = true
+  integration_method          = "ANY"
 
   tags = {
-    Name        = "${var.name}-api"
-    Environment = var.environment
-  }
-}
-
-resource "aws_apigatewayv2_vpc_link" "main" {
-  name               = "${var.name}-vpc-link"
-  security_group_ids = [module.app_security_groups.vpc_link_security_group_id]
-  subnet_ids         = data.aws_subnets.public.ids
-
-  tags = {
-    Name        = "${var.name}-vpc-link"
-    Environment = var.environment
-  }
-}
-
-resource "aws_apigatewayv2_integration" "main" {
-  api_id             = aws_apigatewayv2_api.main.id
-  integration_type   = "HTTP_PROXY"
-  integration_uri    = module.cloudmap_private_service.service_arn
-  integration_method = "ANY"
-  connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link.main.id
-}
-
-resource "aws_apigatewayv2_route" "main" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "$default"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
-}
-
-resource "aws_apigatewayv2_stage" "main" {
-  api_id      = aws_apigatewayv2_api.main.id
-  name        = "$default"
-  auto_deploy = true
-
-  tags = {
-    Name        = "${var.name}-api-stage"
     Environment = var.environment
   }
 }
@@ -147,9 +118,9 @@ resource "aws_apigatewayv2_domain_name" "main" {
 
 # API Gateway Domain Mapping
 resource "aws_apigatewayv2_api_mapping" "main" {
-  api_id      = aws_apigatewayv2_api.main.id
+  api_id      = module.http_api_cloudmap_proxy.api_id
   domain_name = aws_apigatewayv2_domain_name.main.id
-  stage       = aws_apigatewayv2_stage.main.id
+  stage       = module.http_api_cloudmap_proxy.stage_id
 }
 
 # DynamoDB Table — single-table design
