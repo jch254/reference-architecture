@@ -84,13 +84,12 @@ module "http_api_cloudmap_proxy" {
 }
 
 # ACM Certificate for API Gateway custom domain
-resource "aws_acm_certificate" "main" {
-  domain_name       = var.dns_name
-  validation_method = "DNS"
+module "acm_certificate" {
+  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.3.0"
 
-  lifecycle {
-    create_before_destroy = true
-  }
+  domain_name               = var.dns_name
+  subject_alternative_names = []
+  validation_method         = "DNS"
 
   tags = {
     Name        = "${var.name}-certificate"
@@ -101,26 +100,20 @@ resource "aws_acm_certificate" "main" {
 # Note: Certificate validation is handled manually via Cloudflare DNS
 
 # API Gateway Custom Domain
-resource "aws_apigatewayv2_domain_name" "main" {
-  domain_name = var.dns_name
+module "api_gateway_custom_domain" {
+  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.3.0"
 
-  domain_name_configuration {
-    certificate_arn = aws_acm_certificate.main.arn
-    endpoint_type   = "REGIONAL"
-    security_policy = "TLS_1_2"
-  }
+  domain_name     = var.dns_name
+  certificate_arn = module.acm_certificate.arn
+  api_id          = module.http_api_cloudmap_proxy.api_id
+  stage           = module.http_api_cloudmap_proxy.stage_id
+  endpoint_type   = "REGIONAL"
+  security_policy = "TLS_1_2"
 
   tags = {
     Name        = "${var.name}-api-domain"
     Environment = var.environment
   }
-}
-
-# API Gateway Domain Mapping
-resource "aws_apigatewayv2_api_mapping" "main" {
-  api_id      = module.http_api_cloudmap_proxy.api_id
-  domain_name = aws_apigatewayv2_domain_name.main.id
-  stage       = module.http_api_cloudmap_proxy.stage_id
 }
 
 # DynamoDB Table — single-table design

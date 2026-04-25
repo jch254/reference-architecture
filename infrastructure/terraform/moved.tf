@@ -107,3 +107,18 @@ moved {
   from = aws_apigatewayv2_stage.main
   to   = module.http_api_cloudmap_proxy.aws_apigatewayv2_stage.main
 }
+
+moved {
+  from = aws_acm_certificate.main
+  to   = module.acm_certificate.aws_acm_certificate.main
+}
+
+moved {
+  from = aws_apigatewayv2_domain_name.main
+  to   = module.api_gateway_custom_domain.aws_apigatewayv2_domain_name.main
+}
+
+moved {
+  from = aws_apigatewayv2_api_mapping.main
+  to   = module.api_gateway_custom_domain.aws_apigatewayv2_api_mapping.main
+}
