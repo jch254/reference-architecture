@@ -254,7 +254,7 @@ resource "aws_ecs_task_definition" "main" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.main.name
+          "awslogs-group"         = module.app_log_group.name
           "awslogs-region"        = var.region
           "awslogs-stream-prefix" = "ecs"
         }
@@ -352,12 +352,15 @@ resource "aws_ecs_service" "main" {
 }
 
 # CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "main" {
-  name              = "/ecs/${var.name}"
+module "app_log_group" {
+  source = "github.com/jch254/terraform-modules//app-log-group?ref=1.2.0"
+
+  name              = var.name
+  environment       = var.environment
+  log_group_name    = "/ecs/${var.name}"
   retention_in_days = 7
 
   tags = {
-    Name        = "${var.name}-logs"
     Environment = var.environment
   }
 }

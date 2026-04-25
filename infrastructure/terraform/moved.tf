@@ -17,3 +17,8 @@ moved {
   from = aws_codebuild_webhook.main
   to   = module.codebuild_project.aws_codebuild_webhook.codebuild_webhook[0]
 }
+
+moved {
+  from = aws_cloudwatch_log_group.main
+  to   = module.app_log_group.aws_cloudwatch_log_group.main
+}
