@@ -46,36 +46,20 @@ module "app_security_groups" {
 }
 
 # Cloud Map Service Discovery
-resource "aws_service_discovery_private_dns_namespace" "main" {
-  name = "${var.name}.local"
-  vpc  = data.aws_vpc.existing.id
+module "cloudmap_private_service" {
+  source = "github.com/jch254/terraform-modules//cloudmap-private-service?ref=1.2.0"
+
+  name              = var.name
+  environment       = var.environment
+  vpc_id            = data.aws_vpc.existing.id
+  namespace_name    = "${var.name}.local"
+  service_name      = "${var.name}-service"
+  dns_record_type   = "SRV"
+  dns_record_ttl    = 1
+  routing_policy    = "MULTIVALUE"
+  failure_threshold = 1
 
   tags = {
-    Name        = "${var.name}-namespace"
-    Environment = var.environment
-  }
-}
-
-resource "aws_service_discovery_service" "main" {
-  name         = "${var.name}-service"
-  namespace_id = aws_service_discovery_private_dns_namespace.main.id
-
-  dns_config {
-    namespace_id   = aws_service_discovery_private_dns_namespace.main.id
-    routing_policy = "MULTIVALUE"
-
-    dns_records {
-      ttl  = 1
-      type = "SRV"
-    }
-  }
-
-  health_check_custom_config {
-    failure_threshold = 1
-  }
-
-  tags = {
-    Name        = "${var.name}-discovery-service"
     Environment = var.environment
   }
 }
@@ -105,7 +89,7 @@ resource "aws_apigatewayv2_vpc_link" "main" {
 resource "aws_apigatewayv2_integration" "main" {
   api_id             = aws_apigatewayv2_api.main.id
   integration_type   = "HTTP_PROXY"
-  integration_uri    = aws_service_discovery_service.main.arn
+  integration_uri    = module.cloudmap_private_service.service_arn
   integration_method = "ANY"
   connection_type    = "VPC_LINK"
   connection_id      = aws_apigatewayv2_vpc_link.main.id
@@ -311,7 +295,7 @@ resource "aws_ecs_service" "main" {
   }
 
   service_registries {
-    registry_arn = aws_service_discovery_service.main.arn
+    registry_arn = module.cloudmap_private_service.service_arn
     port         = 3000
   }
 

@@ -57,3 +57,13 @@ moved {
   from = aws_security_group.ecs
   to   = module.app_security_groups.aws_security_group.ecs
 }
+
+moved {
+  from = aws_service_discovery_private_dns_namespace.main
+  to   = module.cloudmap_private_service.aws_service_discovery_private_dns_namespace.main
+}
+
+moved {
+  from = aws_service_discovery_service.main
+  to   = module.cloudmap_private_service.aws_service_discovery_service.main
+}
