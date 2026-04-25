@@ -47,3 +47,13 @@ moved {
   from = aws_iam_role_policy.ecs_task_dynamodb
   to   = module.app_runtime_iam.aws_iam_role_policy.ecs_task_dynamodb
 }
+
+moved {
+  from = aws_security_group.vpc_link
+  to   = module.app_security_groups.aws_security_group.vpc_link
+}
+
+moved {
+  from = aws_security_group.ecs
+  to   = module.app_security_groups.aws_security_group.ecs
+}

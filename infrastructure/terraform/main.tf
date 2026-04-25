@@ -32,45 +32,15 @@ module "ecr_repository" {
 }
 
 # Security Groups
-resource "aws_security_group" "vpc_link" {
-  name        = "${var.name}-vpc-link-sg"
-  description = "Security group for API Gateway VPC Link"
-  vpc_id      = data.aws_vpc.existing.id
+module "app_security_groups" {
+  source = "github.com/jch254/terraform-modules//app-security-groups?ref=1.2.0"
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  name           = var.name
+  environment    = var.environment
+  vpc_id         = data.aws_vpc.existing.id
+  container_port = 3000
 
   tags = {
-    Name        = "${var.name}-vpc-link-sg"
-    Environment = var.environment
-  }
-}
-
-resource "aws_security_group" "ecs" {
-  name        = "${var.name}-ecs-sg"
-  description = "Security group for ECS tasks"
-  vpc_id      = data.aws_vpc.existing.id
-
-  ingress {
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.vpc_link.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "${var.name}-ecs-sg"
     Environment = var.environment
   }
 }
@@ -123,7 +93,7 @@ resource "aws_apigatewayv2_api" "main" {
 
 resource "aws_apigatewayv2_vpc_link" "main" {
   name               = "${var.name}-vpc-link"
-  security_group_ids = [aws_security_group.vpc_link.id]
+  security_group_ids = [module.app_security_groups.vpc_link_security_group_id]
   subnet_ids         = data.aws_subnets.public.ids
 
   tags = {
@@ -335,7 +305,7 @@ resource "aws_ecs_service" "main" {
   }
 
   network_configuration {
-    security_groups  = [aws_security_group.ecs.id]
+    security_groups  = [module.app_security_groups.ecs_security_group_id]
     subnets          = data.aws_subnets.public.ids
     assign_public_ip = true
   }
