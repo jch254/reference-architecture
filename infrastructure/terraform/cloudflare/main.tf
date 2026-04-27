@@ -24,10 +24,10 @@ data "cloudflare_zone" "zone" {
 
 # ACM certificate DNS validation
 module "acm_validation_records" {
-  source = "github.com/jch254/terraform-modules//cloudflare-acm-validation-records?ref=1.4.0"
+  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.7.0"
 
   zone_id = data.cloudflare_zone.zone.id
-  validation_records = {
+  records = {
     for key, record in data.terraform_remote_state.aws.outputs.acm_certificate_validation : key => {
       name    = trimsuffix(record.name, ".")
       type    = record.type
@@ -38,15 +38,26 @@ module "acm_validation_records" {
 }
 
 module "api_dns" {
-  source = "github.com/jch254/terraform-modules//cloudflare-api-dns?ref=1.4.0"
+  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.7.0"
 
   zone_id = data.cloudflare_zone.zone.id
   records = {
     main = {
       name    = var.subdomain
-      target  = data.terraform_remote_state.aws.outputs.api_gateway_custom_domain_target
+      type    = "CNAME"
+      content = data.terraform_remote_state.aws.outputs.api_gateway_custom_domain_target
       proxied = true
       ttl     = 1
     }
   }
+}
+
+moved {
+  from = module.acm_validation_records.cloudflare_dns_record.acm_validation
+  to   = module.acm_validation_records.cloudflare_dns_record.this
+}
+
+moved {
+  from = module.api_dns.cloudflare_dns_record.cname
+  to   = module.api_dns.cloudflare_dns_record.this
 }
