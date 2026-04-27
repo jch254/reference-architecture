@@ -593,43 +593,6 @@ module "codebuild_project" {
   }
 }
 
-# SNS Topic for CodeBuild notifications
-resource "aws_sns_topic" "build_notifications" {
-  name = "${var.name}-build-notifications"
-
-  tags = {
-    Name        = "${var.name}-build-notifications"
-    Environment = var.environment
-  }
-}
-
-resource "aws_sns_topic_subscription" "build_email" {
-  topic_arn = aws_sns_topic.build_notifications.arn
-  protocol  = "email"
-  endpoint  = var.notification_email
-}
-
-# Lambda formatter — receives EventBridge events and publishes formatted message to SNS
-resource "aws_iam_role" "build_notification_lambda" {
-  name = "${var.name}-build-notification-lambda"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "lambda.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.name}-build-notification-lambda"
-    Environment = var.environment
-  }
-}
-
 resource "aws_ssm_parameter" "cookie_secret" {
   name        = "/${var.name}/cookie-secret"
   description = "Secret key for cookie signing"
@@ -662,91 +625,55 @@ resource "aws_ssm_parameter" "resend_api_key" {
   }
 }
 
-resource "aws_iam_role_policy" "build_notification_lambda" {
-  name = "${var.name}-build-notification-lambda"
-  role = aws_iam_role.build_notification_lambda.id
+# Build notifier — SNS topic + email + Lambda formatter + EventBridge rule on CodeBuild events
+module "build_notifier" {
+  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.0"
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "sns:Publish"
-        ]
-        Resource = aws_sns_topic.build_notifications.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
+  name               = var.name
+  environment        = var.environment
+  notification_email = var.notification_email
+  app_url            = "https://${var.dns_name}"
+  github_repo_url    = trimsuffix(var.source_location, ".git")
+
+  codebuild_project_names = [module.codebuild_project.project_name]
 }
 
-data "archive_file" "build_notification_lambda" {
-  type        = "zip"
-  source_file = "${path.module}/lambda/build-notification-formatter/dist/index.js"
-  output_path = "${path.module}/lambda/build-notification-formatter/dist/build-notification-formatter.zip"
+moved {
+  from = aws_sns_topic.build_notifications
+  to   = module.build_notifier.aws_sns_topic.this
 }
 
-resource "aws_lambda_function" "build_notification_formatter" {
-  filename         = data.archive_file.build_notification_lambda.output_path
-  function_name    = "${var.name}-build-notification-formatter"
-  role             = aws_iam_role.build_notification_lambda.arn
-  handler          = "index.handler"
-  runtime          = "nodejs20.x"
-  source_code_hash = data.archive_file.build_notification_lambda.output_base64sha256
-
-  environment {
-    variables = {
-      SNS_TOPIC_ARN   = aws_sns_topic.build_notifications.arn
-      APP_URL         = "https://${var.dns_name}"
-      GITHUB_REPO_URL = trimsuffix(var.source_location, ".git")
-    }
-  }
-
-  tags = {
-    Name        = "${var.name}-build-notification-formatter"
-    Environment = var.environment
-  }
+moved {
+  from = aws_sns_topic_subscription.build_email
+  to   = module.build_notifier.aws_sns_topic_subscription.email
 }
 
-resource "aws_lambda_permission" "build_notification_eventbridge" {
-  statement_id  = "AllowExecutionFromEventBridge"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.build_notification_formatter.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.build_notifications.arn
+moved {
+  from = aws_iam_role.build_notification_lambda
+  to   = module.build_notifier.aws_iam_role.lambda
 }
 
-# EventBridge rule — CodeBuild success + failure only
-resource "aws_cloudwatch_event_rule" "build_notifications" {
-  name        = "${var.name}-build-notifications"
-  description = "CodeBuild build success and failure events"
-
-  event_pattern = jsonencode({
-    source      = ["aws.codebuild"]
-    detail-type = ["CodeBuild Build State Change"]
-    detail = {
-      build-status = ["SUCCEEDED", "FAILED"]
-      project-name = [module.codebuild_project.project_name]
-    }
-  })
-
-  tags = {
-    Name        = "${var.name}-build-notifications"
-    Environment = var.environment
-  }
+moved {
+  from = aws_iam_role_policy.build_notification_lambda
+  to   = module.build_notifier.aws_iam_role_policy.lambda
 }
 
-resource "aws_cloudwatch_event_target" "build_notifications" {
-  rule      = aws_cloudwatch_event_rule.build_notifications.name
-  target_id = "${var.name}-build-notifications-lambda"
-  arn       = aws_lambda_function.build_notification_formatter.arn
+moved {
+  from = aws_lambda_function.build_notification_formatter
+  to   = module.build_notifier.aws_lambda_function.formatter
+}
+
+moved {
+  from = aws_lambda_permission.build_notification_eventbridge
+  to   = module.build_notifier.aws_lambda_permission.eventbridge
+}
+
+moved {
+  from = aws_cloudwatch_event_rule.build_notifications
+  to   = module.build_notifier.aws_cloudwatch_event_rule.this
+}
+
+moved {
+  from = aws_cloudwatch_event_target.build_notifications
+  to   = module.build_notifier.aws_cloudwatch_event_target.lambda
 }
