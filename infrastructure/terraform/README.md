@@ -10,7 +10,7 @@ ECS Fargate behind API Gateway HTTP API. No ALB — API Gateway connects directl
 - API Gateway HTTP API - regional custom domain with ACM TLS cert. VPC Link to Cloud Map.
 - Cloud Map - private DNS namespace. ECS registers tasks automatically.
 - DynamoDB - single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, DeleteItem, Query.
-- CodeBuild - build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply. Post-deploy system validation.
+- CodeBuild - build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply. Post-deploy system validation. Build notifications use an app-owned EventBridge rule targeting the shared-platform notifier.
 - `cloudflare/` — DNS layer. See [cloudflare/README.md](cloudflare/README.md).
 
 ## Module boundary
@@ -31,7 +31,7 @@ This scaffold consumes `jch254/terraform-modules` for the reusable core infrastr
 
 The `terraform-modules` repository owns reusable primitives. This repository remains the runnable public reference scaffold: it chooses app-specific names, ports, domains, image tags, environment variables, secrets, service sizing, and deployment flow.
 
-Resources that are still application-specific or intentionally deferred remain local here, including SSM parameters, build notification SNS/EventBridge/Lambda resources, deployment variables, and product-specific infrastructure such as SES, mail records, Cloudflare security rules, redirects, and tenant-routing choices.
+Resources that are still application-specific or intentionally deferred remain local here, including SSM parameters, deployment variables, the CodeBuild notification EventBridge subscription, and product-specific infrastructure such as SES, mail records, Cloudflare security rules, redirects, and tenant-routing choices. The shared formatter Lambda and notification email subscription are owned by the shared-platform root.
 
 The Cloudflare Terraform root remains separate from this AWS root. It also consumes focused `terraform-modules` building blocks for ACM validation DNS records and the API CNAME record, while continuing to read this root's outputs through remote state.
 
@@ -68,7 +68,7 @@ After bootstrap, all subsequent deploys run automatically via CodeBuild.
 ## Variables
 
 | Name | Description | Required | Default |
-|------|-------------|----------|---------|
+| ---- | ----------- | -------- | ------- |
 | `region` | AWS region to deploy to | yes | — |
 | `name` | Name of project (used in AWS resource names) | yes | — |
 | `environment` | Environment (e.g. prod) | no | `"prod"` |
@@ -81,11 +81,10 @@ After bootstrap, all subsequent deploys run automatically via CodeBuild.
 | `buildspec` | Path to the buildspec file | no | `"buildspec.yml"` |
 | `cache_bucket` | S3 bucket/prefix for CodeBuild cache | yes | — |
 | `build_compute_type` | CodeBuild compute type | no | `"BUILD_GENERAL1_SMALL"` |
+| `build_notifier_region` | AWS region where shared-platform deploys the build notification formatter Lambda | no | `region` |
+| `build_notifier_lambda_function_name` | Name of the shared-platform build notification formatter Lambda | no | `"shared-platform-build-notification-formatter"` |
 | `container_cpu` | Fargate task CPU units | no | `256` |
 | `container_memory` | Fargate task memory (MB) | no | `512` |
 | `cloudflare_domain` | Cloudflare zone name (e.g. 603.nz) | yes | — |
 | `cloudflare_subdomain` | Subdomain for the application (e.g. reference-architecture) | yes | — |
 | `dns_name` | Full domain name for the application (e.g. reference-architecture.603.nz) | yes | — |
-| `notification_email` | Email address for CodeBuild build notifications (must be confirmed after first apply) | yes | — |
-
-> **Note:** After the first `terraform apply`, AWS will send a confirmation email to the `notification_email` address. That confirmation link must be accepted before build notifications are delivered.

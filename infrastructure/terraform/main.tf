@@ -8,6 +8,11 @@ data "aws_vpc" "existing" {
 
 data "aws_caller_identity" "current" {}
 
+locals {
+  build_notifier_region              = coalesce(var.build_notifier_region, var.region)
+  build_notifier_lambda_function_arn = "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.build_notifier_lambda_function_name}"
+}
+
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"
@@ -550,6 +555,15 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "lambda:ListTags"
         ]
         Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:AddPermission",
+          "lambda:RemovePermission",
+          "lambda:GetPolicy"
+        ]
+        Resource = local.build_notifier_lambda_function_arn
       }
     ]
   })
@@ -593,6 +607,18 @@ module "codebuild_project" {
   }
 }
 
+module "build_notifier_subscription" {
+  source = "github.com/jch254/terraform-modules//build-notifier-project-subscription?ref=1.8.2"
+
+  name                = var.name
+  environment         = var.environment
+  lambda_function_arn = local.build_notifier_lambda_function_arn
+  app_url             = "https://${var.dns_name}"
+  github_repo_url     = trimsuffix(var.source_location, ".git")
+
+  codebuild_project_names = [module.codebuild_project.project_name]
+}
+
 resource "aws_ssm_parameter" "cookie_secret" {
   name        = "/${var.name}/cookie-secret"
   description = "Secret key for cookie signing"
@@ -623,57 +649,4 @@ resource "aws_ssm_parameter" "resend_api_key" {
     Name        = "${var.name}-resend-api-key"
     Environment = var.environment
   }
-}
-
-# Build notifier — SNS topic + email + Lambda formatter + EventBridge rule on CodeBuild events
-module "build_notifier" {
-  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.0"
-
-  name               = var.name
-  environment        = var.environment
-  notification_email = var.notification_email
-  app_url            = "https://${var.dns_name}"
-  github_repo_url    = trimsuffix(var.source_location, ".git")
-
-  codebuild_project_names = [module.codebuild_project.project_name]
-}
-
-moved {
-  from = aws_sns_topic.build_notifications
-  to   = module.build_notifier.aws_sns_topic.this
-}
-
-moved {
-  from = aws_sns_topic_subscription.build_email
-  to   = module.build_notifier.aws_sns_topic_subscription.email
-}
-
-moved {
-  from = aws_iam_role.build_notification_lambda
-  to   = module.build_notifier.aws_iam_role.lambda
-}
-
-moved {
-  from = aws_iam_role_policy.build_notification_lambda
-  to   = module.build_notifier.aws_iam_role_policy.lambda
-}
-
-moved {
-  from = aws_lambda_function.build_notification_formatter
-  to   = module.build_notifier.aws_lambda_function.formatter
-}
-
-moved {
-  from = aws_lambda_permission.build_notification_eventbridge
-  to   = module.build_notifier.aws_lambda_permission.eventbridge
-}
-
-moved {
-  from = aws_cloudwatch_event_rule.build_notifications
-  to   = module.build_notifier.aws_cloudwatch_event_rule.this
-}
-
-moved {
-  from = aws_cloudwatch_event_target.build_notifications
-  to   = module.build_notifier.aws_cloudwatch_event_target.lambda
 }

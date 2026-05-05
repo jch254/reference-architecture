@@ -8,6 +8,16 @@ output "dynamodb_table_name" {
   value       = module.dynamodb_single_table.table_name
 }
 
+output "codebuild_project_name" {
+  description = "Name of the CodeBuild project to register with the shared-platform build notifier."
+  value       = module.codebuild_project.project_name
+}
+
+output "build_notification_event_rule_arn" {
+  description = "ARN of the app-owned EventBridge rule targeting the shared-platform build notifier."
+  value       = module.build_notifier_subscription.event_rule_arn
+}
+
 output "api_gateway_custom_domain_target" {
   description = "Target domain name for DNS CNAME (point your domain here)"
   value       = module.api_gateway_custom_domain.target_domain_name

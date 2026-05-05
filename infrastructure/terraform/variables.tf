@@ -63,6 +63,18 @@ variable "build_compute_type" {
   default     = "BUILD_GENERAL1_SMALL"
 }
 
+variable "build_notifier_region" {
+  description = "AWS region where shared-platform deploys the build notification formatter Lambda. Defaults to region."
+  type        = string
+  default     = null
+}
+
+variable "build_notifier_lambda_function_name" {
+  description = "Name of the shared-platform build notification formatter Lambda."
+  type        = string
+  default     = "shared-platform-build-notification-formatter"
+}
+
 variable "container_cpu" {
   description = "Fargate task CPU units"
   type        = number
@@ -87,11 +99,6 @@ variable "cloudflare_subdomain" {
 
 variable "dns_name" {
   description = "Full domain name for the application (e.g. reference-architecture.603.nz)"
-  type        = string
-}
-
-variable "notification_email" {
-  description = "Email address for CodeBuild build notifications (must be confirmed after first apply)"
   type        = string
 }
 
