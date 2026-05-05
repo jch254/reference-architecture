@@ -36,8 +36,8 @@ sys.exit(1)
   if [ "$IAM_CHANGE" = "true" ]; then
     echo "IAM changes detected — applying IAM resources first"
     terraform apply -auto-approve \
-      -target=aws_iam_role.codebuild_role \
-      -target=aws_iam_role_policy.codebuild_policy \
+      -target=module.codebuild_terraform_role.aws_iam_role.this \
+      -target=module.codebuild_terraform_role.aws_iam_role_policy.this \
       -var-file=environments/prod/terraform.tfvars \
       -var="image_tag=${IMAGE_TAG}"
 
