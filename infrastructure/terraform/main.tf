@@ -36,123 +36,28 @@ module "ecr_repository" {
   }
 }
 
-# Security Groups
-module "app_security_groups" {
-  source = "github.com/jch254/terraform-modules//app-security-groups?ref=1.2.0"
+# ECS HTTP runtime
+module "ecs_http_service" {
+  source = "github.com/jch254/terraform-modules//ecs-http-service?ref=1.9.0"
 
-  name           = var.name
-  environment    = var.environment
-  vpc_id         = data.aws_vpc.existing.id
-  container_port = 3000
+  name        = var.name
+  environment = var.environment
+  vpc_id      = data.aws_vpc.existing.id
+  subnet_ids  = data.aws_subnets.public.ids
 
-  tags = {
-    Environment = var.environment
-  }
-}
-
-# Cloud Map Service Discovery
-module "cloudmap_private_service" {
-  source = "github.com/jch254/terraform-modules//cloudmap-private-service?ref=1.2.0"
-
-  name              = var.name
-  environment       = var.environment
-  vpc_id            = data.aws_vpc.existing.id
-  namespace_name    = "${var.name}.local"
-  service_name      = "${var.name}-service"
-  dns_record_type   = "SRV"
-  dns_record_ttl    = 1
-  routing_policy    = "MULTIVALUE"
-  failure_threshold = 1
-
-  tags = {
-    Environment = var.environment
-  }
-}
-
-# API Gateway HTTP API
-module "http_api_cloudmap_proxy" {
-  source = "github.com/jch254/terraform-modules//http-api-cloudmap-proxy?ref=1.2.0"
-
-  name                        = var.name
-  environment                 = var.environment
-  subnet_ids                  = data.aws_subnets.public.ids
-  vpc_link_security_group_ids = [module.app_security_groups.vpc_link_security_group_id]
-  cloudmap_service_arn        = module.cloudmap_private_service.service_arn
-  route_key                   = "$default"
-  stage_name                  = "$default"
-  auto_deploy                 = true
-  integration_method          = "ANY"
-
-  tags = {
-    Environment = var.environment
-  }
-}
-
-# ACM Certificate for API Gateway custom domain
-module "acm_certificate" {
-  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.3.0"
-
-  domain_name               = var.dns_name
-  subject_alternative_names = []
-  validation_method         = "DNS"
-
-  tags = {
-    Name        = "${var.name}-certificate"
-    Environment = var.environment
-  }
-}
-
-# Note: Certificate validation is handled manually via Cloudflare DNS
-
-# API Gateway Custom Domain
-module "api_gateway_custom_domain" {
-  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.3.0"
-
-  domain_name     = var.dns_name
-  certificate_arn = module.acm_certificate.arn
-  api_id          = module.http_api_cloudmap_proxy.api_id
-  stage           = module.http_api_cloudmap_proxy.stage_id
-  endpoint_type   = "REGIONAL"
-  security_policy = "TLS_1_2"
-
-  tags = {
-    Name        = "${var.name}-api-domain"
-    Environment = var.environment
-  }
-}
-
-# DynamoDB Table — single-table design
-module "dynamodb_single_table" {
-  source = "git::https://github.com/jch254/terraform-modules.git//dynamodb-single-table?ref=1.1.0"
-
-  name = "${var.name}-entities"
-
-  tags = {
-    Environment = var.environment
-  }
-}
-
-# ECS Fargate runtime
-module "ecs_fargate_service" {
-  source = "github.com/jch254/terraform-modules//ecs-fargate-service?ref=1.2.0"
-
-  name               = var.name
-  environment        = var.environment
-  cluster_name       = "${var.name}-cluster"
-  service_name       = "${var.name}-service"
-  task_family        = var.name
-  container_name     = var.name
   image              = "${module.ecr_repository.repository_url}:${var.image_tag}"
   cpu                = var.container_cpu
   memory             = var.container_memory
   execution_role_arn = module.app_runtime_iam.execution_role_arn
   task_role_arn      = module.app_runtime_iam.task_role_arn
 
-  container_port    = 3000
-  host_port         = 3000
-  log_group_name    = module.app_log_group.name
-  log_region        = var.region
-  log_stream_prefix = "ecs"
+  container_port        = 3000
+  host_port             = 3000
+  create_log_group      = true
+  log_group_name        = "/ecs/${var.name}"
+  log_retention_in_days = 7
+  log_region            = var.region
+  log_stream_prefix     = "ecs"
 
   environment_variables = [
     {
@@ -198,11 +103,7 @@ module "ecs_fargate_service" {
 
   essential = true
 
-  subnet_ids           = data.aws_subnets.public.ids
-  security_group_id    = module.app_security_groups.ecs_security_group_id
-  assign_public_ip     = true
-  cloudmap_service_arn = module.cloudmap_private_service.service_arn
-
+  assign_public_ip                    = true
   desired_count                       = 1
   deployment_minimum_healthy_percent  = 100
   deployment_maximum_percent          = 200
@@ -220,14 +121,44 @@ module "ecs_fargate_service" {
   depends_on = [module.app_runtime_iam]
 }
 
-# CloudWatch Log Group
-module "app_log_group" {
-  source = "github.com/jch254/terraform-modules//app-log-group?ref=1.2.0"
+# ACM Certificate for API Gateway custom domain
+module "acm_certificate" {
+  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.3.0"
 
-  name              = var.name
-  environment       = var.environment
-  log_group_name    = "/ecs/${var.name}"
-  retention_in_days = 7
+  domain_name               = var.dns_name
+  subject_alternative_names = []
+  validation_method         = "DNS"
+
+  tags = {
+    Name        = "${var.name}-certificate"
+    Environment = var.environment
+  }
+}
+
+# Note: Certificate validation is handled manually via Cloudflare DNS
+
+# API Gateway Custom Domain
+module "api_gateway_custom_domain" {
+  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.3.0"
+
+  domain_name     = var.dns_name
+  certificate_arn = module.acm_certificate.arn
+  api_id          = module.ecs_http_service.api_id
+  stage           = module.ecs_http_service.stage_id
+  endpoint_type   = "REGIONAL"
+  security_policy = "TLS_1_2"
+
+  tags = {
+    Name        = "${var.name}-api-domain"
+    Environment = var.environment
+  }
+}
+
+# DynamoDB Table — single-table design
+module "dynamodb_single_table" {
+  source = "git::https://github.com/jch254/terraform-modules.git//dynamodb-single-table?ref=1.1.0"
+
+  name = "${var.name}-entities"
 
   tags = {
     Environment = var.environment
@@ -571,32 +502,36 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 
 # CodeBuild Project
 module "codebuild_project" {
-  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-project?ref=1.1.1"
+  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-project?ref=1.9.0"
 
-  name                        = var.name
-  description                 = "Build project for ${var.name}"
-  codebuild_role_arn          = aws_iam_role.codebuild_role.arn
-  build_compute_type          = var.build_compute_type
-  build_docker_image          = var.build_docker_image
-  build_docker_tag            = var.build_docker_tag
-  privileged_mode             = true
-  image_pull_credentials_type = "CODEBUILD"
-  source_type                 = var.source_type
-  source_location             = var.source_location
-  buildspec                   = var.buildspec
-  git_clone_depth             = 1
-  cache_bucket                = var.cache_bucket
-  badge_enabled               = false
-  create_log_group            = false
-  webhook_enabled             = true
+  name                               = var.name
+  description                        = "Build project for ${var.name}"
+  codebuild_role_arn                 = aws_iam_role.codebuild_role.arn
+  build_compute_type                 = var.build_compute_type
+  build_docker_image                 = var.build_docker_image
+  build_docker_tag                   = var.build_docker_tag
+  privileged_mode                    = true
+  image_pull_credentials_type        = "CODEBUILD"
+  source_type                        = var.source_type
+  source_location                    = var.source_location
+  buildspec                          = var.buildspec
+  git_clone_depth                    = 1
+  cache_bucket                       = var.cache_bucket
+  badge_enabled                      = false
+  create_log_group                   = false
+  webhook_enabled                    = true
+  environment                        = var.environment
+  build_notifier_lambda_function_arn = local.build_notifier_lambda_function_arn
+  build_notifier_app_url             = "https://${var.dns_name}"
+  build_notifier_github_repo_url     = trimsuffix(var.source_location, ".git")
 
   environment_variables = [
     { name = "AWS_DEFAULT_REGION", value = var.region },
     { name = "AWS_ACCOUNT_ID", value = data.aws_caller_identity.current.account_id },
     { name = "IMAGE_REPO_NAME", value = module.ecr_repository.repository_name },
     { name = "IMAGE_TAG", value = var.image_tag },
-    { name = "CLUSTER_NAME", value = module.ecs_fargate_service.cluster_name },
-    { name = "SERVICE_NAME", value = module.ecs_fargate_service.service_name },
+    { name = "CLUSTER_NAME", value = module.ecs_http_service.cluster_name },
+    { name = "SERVICE_NAME", value = module.ecs_http_service.service_name },
     { name = "CLOUDFLARE_DOMAIN", value = var.cloudflare_domain },
     { name = "CLOUDFLARE_SUBDOMAIN", value = var.cloudflare_subdomain },
   ]
@@ -605,18 +540,6 @@ module "codebuild_project" {
     Name        = "${var.name}-codebuild"
     Environment = var.environment
   }
-}
-
-module "build_notifier_subscription" {
-  source = "github.com/jch254/terraform-modules//build-notifier-project-subscription?ref=1.8.3"
-
-  name                = var.name
-  environment         = var.environment
-  lambda_function_arn = local.build_notifier_lambda_function_arn
-  app_url             = "https://${var.dns_name}"
-  github_repo_url     = trimsuffix(var.source_location, ".git")
-
-  codebuild_project_names = [module.codebuild_project.project_name]
 }
 
 resource "aws_ssm_parameter" "cookie_secret" {

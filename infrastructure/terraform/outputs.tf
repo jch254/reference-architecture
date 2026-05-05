@@ -1,6 +1,6 @@
 output "api_gateway_url" {
   description = "URL of the API Gateway"
-  value       = module.http_api_cloudmap_proxy.api_endpoint
+  value       = module.ecs_http_service.api_endpoint
 }
 
 output "dynamodb_table_name" {
@@ -15,7 +15,7 @@ output "codebuild_project_name" {
 
 output "build_notification_event_rule_arn" {
   description = "ARN of the app-owned EventBridge rule targeting the shared-platform build notifier."
-  value       = module.build_notifier_subscription.event_rule_arn
+  value       = module.codebuild_project.build_notification_event_rule_arn
 }
 
 output "api_gateway_custom_domain_target" {
