@@ -35,7 +35,7 @@ Resources that are still application-specific or intentionally deferred remain l
 
 The Cloudflare Terraform root remains separate from this AWS root. It also consumes focused `terraform-modules` building blocks for ACM validation DNS records and the API CNAME record, while continuing to read this root's outputs through remote state.
 
-Real app descendants such as Namaste, Lush, and future KHA can choose when to adopt these modules. They should treat this scaffold as a proven reference, not an automatic migration mandate.
+Downstream app repos can choose when to adopt these modules. They should treat this scaffold as a proven reference, not an automatic migration mandate.
 
 The `moved.tf` blocks are intentionally kept. They document the state-safe migration history and allow Terraform to preserve deployed resource identity when existing states are planned or applied against the modular configuration.
 

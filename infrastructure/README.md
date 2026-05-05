@@ -27,6 +27,6 @@ AWS and Cloudflare intentionally remain separate Terraform roots. The AWS root p
 
 The Terraform `moved.tf` files are intentionally retained. They document the state-safe migration history and let Terraform preserve deployed resource identity when planning against existing state.
 
-Namaste, Lush, and future KHA can adopt the same modules later when useful, but this scaffold is a reference rather than an automatic migration mandate. SES, mail provider records, Cloudflare security rules, build notifications, and other product-specific infrastructure stay outside this reusable-core migration.
+Downstream app repos can adopt the same modules later when useful, but this scaffold is a reference rather than an automatic migration mandate. SES, mail provider records, Cloudflare security rules, build notifications, and other product-specific infrastructure stay outside this reusable-core migration.
 
 See each layer's README for specifics.
