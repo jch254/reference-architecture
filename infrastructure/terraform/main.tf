@@ -157,7 +157,7 @@ module "app_runtime_iam" {
 
 # IAM — CodeBuild Terraform deploy role
 module "codebuild_terraform_role" {
-  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-terraform-role?ref=1.12.0"
+  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-terraform-role?ref=1.13.1"
 
   name        = var.name
   environment = var.environment
@@ -171,6 +171,7 @@ module "codebuild_terraform_role" {
   api_gateway_resource_arns = ["arn:aws:apigateway:${var.region}::/*"]
   enable_service_discovery  = true
   enable_route53            = true
+  enable_acm                = true
 
   codebuild_project_arns = ["*"]
 
