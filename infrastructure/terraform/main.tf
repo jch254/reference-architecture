@@ -111,22 +111,18 @@ module "ecs_http_service" {
 
 # ACM Certificate for API Gateway custom domain
 module "acm_certificate" {
-  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.3.0"
+  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.13.0"
 
   domain_name               = var.dns_name
   subject_alternative_names = []
   validation_method         = "DNS"
-
-  tags = {
-    Name = "${var.name}-certificate"
-  }
 }
 
 # Note: Certificate validation is handled manually via Cloudflare DNS
 
 # API Gateway Custom Domain
 module "api_gateway_custom_domain" {
-  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.3.0"
+  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.13.0"
 
   domain_name     = var.dns_name
   certificate_arn = module.acm_certificate.arn
@@ -134,10 +130,6 @@ module "api_gateway_custom_domain" {
   stage           = module.ecs_http_service.stage_id
   endpoint_type   = "REGIONAL"
   security_policy = "TLS_1_2"
-
-  tags = {
-    Name = "${var.name}-api-domain"
-  }
 }
 
 # DynamoDB Table — single-table design
@@ -200,7 +192,7 @@ module "codebuild_terraform_role" {
 
 # CodeBuild Project
 module "codebuild_project" {
-  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-project?ref=1.9.0"
+  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-project?ref=1.13.0"
 
   name                               = var.name
   description                        = "Build project for ${var.name}"
@@ -233,30 +225,18 @@ module "codebuild_project" {
     { name = "CLOUDFLARE_DOMAIN", value = var.cloudflare_domain },
     { name = "CLOUDFLARE_SUBDOMAIN", value = var.cloudflare_subdomain },
   ]
-
-  tags = {
-    Name = "${var.name}-codebuild"
-  }
 }
 
 module "cookie_secret" {
-  source = "git::https://github.com/jch254/terraform-modules.git//ssm-parameter-placeholder?ref=1.11.0"
+  source = "git::https://github.com/jch254/terraform-modules.git//ssm-parameter-placeholder?ref=1.13.0"
 
   name        = "/${var.name}/cookie-secret"
   description = "Secret key for cookie signing"
-
-  tags = {
-    Name = "${var.name}-cookie-secret"
-  }
 }
 
 module "resend_api_key" {
-  source = "git::https://github.com/jch254/terraform-modules.git//ssm-parameter-placeholder?ref=1.11.0"
+  source = "git::https://github.com/jch254/terraform-modules.git//ssm-parameter-placeholder?ref=1.13.0"
 
   name        = "/${var.name}/resend-api-key"
   description = "Resend API key for sending transactional emails"
-
-  tags = {
-    Name = "${var.name}-resend-api-key"
-  }
 }
