@@ -33,7 +33,18 @@ for rc in plan.get('resource_changes', []):
 sys.exit(1)
 " 2>/dev/null && echo "true" || echo "false")
 
-  if [ "$IAM_CHANGE" = "true" ]; then
+  MOVED_CHANGE=$(terraform show -json main.tfplan | python3 -c "
+import sys, json
+plan = json.load(sys.stdin)
+for rc in plan.get('resource_changes', []):
+    if rc.get('previous_address'):
+        sys.exit(0)
+sys.exit(1)
+" 2>/dev/null && echo "true" || echo "false")
+
+  if [ "$IAM_CHANGE" = "true" ] && [ "$MOVED_CHANGE" = "true" ]; then
+    echo "IAM changes and moved resources detected — applying complete plan so Terraform can update state addresses"
+  elif [ "$IAM_CHANGE" = "true" ]; then
     echo "IAM changes detected — applying IAM resources first"
     terraform apply -auto-approve \
       -target=module.codebuild_terraform_role.aws_iam_role.this \
