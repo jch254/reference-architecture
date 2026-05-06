@@ -165,7 +165,7 @@ module "app_runtime_iam" {
 
 # IAM — CodeBuild Terraform deploy role
 module "codebuild_terraform_role" {
-  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-terraform-role?ref=1.10.0"
+  source = "git::https://github.com/jch254/terraform-modules.git//codebuild-terraform-role?ref=1.12.0"
 
   name        = var.name
   environment = var.environment
@@ -180,34 +180,19 @@ module "codebuild_terraform_role" {
   enable_service_discovery  = true
   enable_route53            = true
 
-  iam_role_arns = [
-    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name}-*",
-  ]
-
   codebuild_project_arns = ["*"]
 
-  ssm_parameter_arns = [
-    "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.name}/*",
+  prefix_managed_services = [
+    "iam_role",
+    "ssm_parameter",
+    "dynamodb_table",
+    "sns_topic",
+    "event_rule",
+    "lambda_function",
   ]
 
   secretsmanager_secret_arns = [
     "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:shared/github-token*",
-  ]
-
-  dynamodb_table_arns = [
-    "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.name}-*",
-  ]
-
-  sns_topic_arns = [
-    "arn:aws:sns:${var.region}:${data.aws_caller_identity.current.account_id}:${var.name}-*",
-  ]
-
-  event_rule_arns = [
-    "arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:rule/${var.name}-*",
-  ]
-
-  lambda_function_arns = [
-    "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*",
   ]
 
   lambda_permission_function_arns = [local.build_notifier_lambda_function_arn]
