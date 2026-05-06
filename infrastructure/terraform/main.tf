@@ -193,7 +193,7 @@ module "codebuild_terraform_role" {
 
 # CodeBuild Project
 module "codebuild_project" {
-  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.15.1"
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.15.2"
 
   name                               = var.name
   description                        = "Build project for ${var.name}"
