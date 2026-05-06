@@ -212,3 +212,13 @@ moved {
   from = aws_iam_role_policy.codebuild_policy
   to   = module.codebuild_terraform_role.aws_iam_role_policy.this
 }
+
+moved {
+  from = aws_ssm_parameter.cookie_secret
+  to   = module.cookie_secret.aws_ssm_parameter.main
+}
+
+moved {
+  from = aws_ssm_parameter.resend_api_key
+  to   = module.resend_api_key.aws_ssm_parameter.main
+}

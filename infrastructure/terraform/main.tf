@@ -1,7 +1,3 @@
-provider "aws" {
-  region = var.region
-}
-
 data "aws_vpc" "existing" {
   id = var.vpc_id
 }
@@ -30,10 +26,6 @@ module "ecr_repository" {
   source = "git::https://github.com/jch254/terraform-modules.git//ecr-repository?ref=1.1.0"
 
   name = var.name
-
-  tags = {
-    Environment = var.environment
-  }
 }
 
 # ECS HTTP runtime
@@ -85,11 +77,11 @@ module "ecs_http_service" {
   secrets = [
     {
       name      = "COOKIE_SECRET"
-      valueFrom = aws_ssm_parameter.cookie_secret.arn
+      valueFrom = module.cookie_secret.arn
     },
     {
       name      = "RESEND_API_KEY"
-      valueFrom = aws_ssm_parameter.resend_api_key.arn
+      valueFrom = module.resend_api_key.arn
     }
   ]
 
@@ -114,10 +106,6 @@ module "ecs_http_service" {
   operating_system_family             = "LINUX"
   cpu_architecture                    = "X86_64"
 
-  tags = {
-    Environment = var.environment
-  }
-
   depends_on = [module.app_runtime_iam]
 }
 
@@ -130,8 +118,7 @@ module "acm_certificate" {
   validation_method         = "DNS"
 
   tags = {
-    Name        = "${var.name}-certificate"
-    Environment = var.environment
+    Name = "${var.name}-certificate"
   }
 }
 
@@ -149,8 +136,7 @@ module "api_gateway_custom_domain" {
   security_policy = "TLS_1_2"
 
   tags = {
-    Name        = "${var.name}-api-domain"
-    Environment = var.environment
+    Name = "${var.name}-api-domain"
   }
 }
 
@@ -159,10 +145,6 @@ module "dynamodb_single_table" {
   source = "git::https://github.com/jch254/terraform-modules.git//dynamodb-single-table?ref=1.1.0"
 
   name = "${var.name}-entities"
-
-  tags = {
-    Environment = var.environment
-  }
 }
 
 # IAM — ECS Runtime Roles
@@ -174,15 +156,11 @@ module "app_runtime_iam" {
   region      = var.region
 
   ssm_parameter_arns = [
-    aws_ssm_parameter.cookie_secret.arn,
-    aws_ssm_parameter.resend_api_key.arn,
+    module.cookie_secret.arn,
+    module.resend_api_key.arn,
   ]
 
   dynamodb_table_arn = module.dynamodb_single_table.table_arn
-
-  tags = {
-    Environment = var.environment
-  }
 }
 
 # IAM — CodeBuild Terraform deploy role
@@ -233,10 +211,6 @@ module "codebuild_terraform_role" {
   ]
 
   lambda_permission_function_arns = [local.build_notifier_lambda_function_arn]
-
-  tags = {
-    Environment = var.environment
-  }
 }
 
 # CodeBuild Project
@@ -276,39 +250,28 @@ module "codebuild_project" {
   ]
 
   tags = {
-    Name        = "${var.name}-codebuild"
-    Environment = var.environment
+    Name = "${var.name}-codebuild"
   }
 }
 
-resource "aws_ssm_parameter" "cookie_secret" {
+module "cookie_secret" {
+  source = "git::https://github.com/jch254/terraform-modules.git//ssm-parameter-placeholder?ref=1.11.0"
+
   name        = "/${var.name}/cookie-secret"
   description = "Secret key for cookie signing"
-  type        = "SecureString"
-  value       = "placeholder"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
 
   tags = {
-    Name        = "${var.name}-cookie-secret"
-    Environment = var.environment
+    Name = "${var.name}-cookie-secret"
   }
 }
 
-resource "aws_ssm_parameter" "resend_api_key" {
+module "resend_api_key" {
+  source = "git::https://github.com/jch254/terraform-modules.git//ssm-parameter-placeholder?ref=1.11.0"
+
   name        = "/${var.name}/resend-api-key"
   description = "Resend API key for sending transactional emails"
-  type        = "SecureString"
-  value       = "placeholder"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
 
   tags = {
-    Name        = "${var.name}-resend-api-key"
-    Environment = var.environment
+    Name = "${var.name}-resend-api-key"
   }
 }
