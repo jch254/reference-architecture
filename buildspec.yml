@@ -29,7 +29,7 @@ phases:
           sleep 2
         done
       - docker info || (echo "Docker failed to start" && cat /tmp/dockerd.log && exit 1)
-      - npm install -g pnpm
+      - npm install -g pnpm@9
       - pnpm install --frozen-lockfile
       - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:8}
       - chmod +x infrastructure/terraform/deploy-infrastructure.bash
