@@ -65,6 +65,19 @@ After bootstrap, all subsequent deploys run automatically via CodeBuild.
 
 `buildspec.yml` → build → Docker push to ECR → Terraform plan/apply → ECS stabilise → Cloudflare Terraform plan/apply → system validation.
 
+## Deployment identities
+
+This root is reused for each deployment identity by changing the var file and remote state key. The existing demo remains in the original state and keeps its existing resource names:
+
+| Domain | Var file | State key | Runtime config |
+| --- | --- | --- | --- |
+| `reference-architecture.603.nz` | `environments/prod/terraform.tfvars` | `reference-architecture` | `TENANT_RESOLUTION_MODE=subdomain`, `AUTH_PROVIDER=internal_magic_link` |
+| `reference-architecture-auth0.603.nz` | `environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `TENANT_RESOLUTION_MODE=fixed`, `APP_TENANT_ID=refarch-auth0-demo`, `AUTH_PROVIDER=oidc` |
+
+The Auth0/OIDC demo is additive. It gets its own `name = "reference-architecture-auth0"` resources, including ECS runtime resources, API custom domain/certificate, CodeBuild project, SSM placeholders, and `${name}-entities` DynamoDB table. The logical item key shape remains `PK = TENANT#refarch-auth0-demo`; the app does not select DynamoDB tables dynamically from the request tenant.
+
+The deployment pipeline reads `TF_STATE_KEY` and `TF_VAR_FILE` from the CodeBuild project environment. For the Auth0 demo these are set from the tfvars file to `reference-architecture-auth0` and `environments/prod-auth0/terraform.tfvars`, which keeps AWS and Cloudflare state separate from the existing demo.
+
 ## Tenant and DynamoDB isolation
 
 Tenant resolution and table isolation are separate choices:
@@ -111,6 +124,11 @@ Persisted tenant fields such as `tenantSlug` should remain on records that store
 | `build_compute_type` | CodeBuild compute type | no | `"BUILD_GENERAL1_SMALL"` |
 | `build_notifier_region` | AWS region where shared-platform deploys the build notification formatter Lambda | no | `region` |
 | `build_notifier_lambda_function_name` | Name of the shared-platform build notification formatter Lambda | no | `"shared-platform-build-notification-formatter"` |
+| `terraform_state_key` | Remote state key used by CodeBuild for this deployment identity | no | `name` |
+| `terraform_var_file` | Terraform variable file CodeBuild uses for subsequent applies | no | `"environments/prod/terraform.tfvars"` |
+| `validation_base_url` | Base URL for post-deploy system validation | no | `https://dns_name` |
+| `run_system_validation` | Whether CodeBuild runs the magic-link system validation after deploy | no | `true` |
+| `cloudflare_api_token_ssm_parameter_name` | SSM parameter containing the Cloudflare API token for the DNS deploy step | no | `"/reference-architecture/cloudflare-api-token"` |
 | `container_cpu` | Fargate task CPU units | no | `256` |
 | `container_memory` | Fargate task memory (MB) | no | `512` |
 | `cloudflare_domain` | Cloudflare zone name (e.g. 603.nz) | yes | — |

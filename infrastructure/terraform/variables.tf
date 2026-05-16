@@ -126,6 +126,51 @@ variable "build_notifier_lambda_function_name" {
   default     = "shared-platform-build-notification-formatter"
 }
 
+variable "terraform_state_key" {
+  description = "Remote state key used by the deployment pipeline. Defaults to name so separate deployment identities keep separate Terraform state."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.terraform_state_key == null || length(trimspace(var.terraform_state_key)) > 0
+    error_message = "terraform_state_key must be null or a non-empty string."
+  }
+}
+
+variable "terraform_var_file" {
+  description = "Terraform variable file used by the deployment pipeline."
+  type        = string
+  default     = "environments/prod/terraform.tfvars"
+
+  validation {
+    condition     = length(trimspace(var.terraform_var_file)) > 0
+    error_message = "terraform_var_file must be a non-empty string."
+  }
+}
+
+variable "validation_base_url" {
+  description = "Base URL used by the post-deploy system validation. Defaults to https://dns_name."
+  type        = string
+  default     = null
+}
+
+variable "run_system_validation" {
+  description = "Whether CodeBuild runs the magic-link system validation after deployment. Disable for backend-only OIDC demos until a token-supplying validation exists."
+  type        = bool
+  default     = true
+}
+
+variable "cloudflare_api_token_ssm_parameter_name" {
+  description = "SSM parameter name containing the Cloudflare API token used by the deployment pipeline."
+  type        = string
+  default     = "/reference-architecture/cloudflare-api-token"
+
+  validation {
+    condition     = length(trimspace(var.cloudflare_api_token_ssm_parameter_name)) > 0
+    error_message = "cloudflare_api_token_ssm_parameter_name must be a non-empty string."
+  }
+}
+
 variable "container_cpu" {
   description = "Fargate task CPU units"
   type        = number

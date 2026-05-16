@@ -30,3 +30,17 @@ The Terraform `moved.tf` files are intentionally retained. They document the sta
 Downstream app repos can adopt the same modules later when useful, but this scaffold is a reference rather than an automatic migration mandate. SES, mail provider records, Cloudflare security rules, build notifications, and other product-specific infrastructure stay outside this reusable-core migration.
 
 See each layer's README for specifics.
+
+## Deployments
+
+| Domain | Purpose | AWS state key | Var file | Cloudflare state key |
+| --- | --- | --- | --- | --- |
+| `reference-architecture.603.nz` | Existing/default demo | `reference-architecture` | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture-cloudflare` |
+| `reference-architecture-auth0.603.nz` | Fixed-tenant Auth0/OIDC backend demo | `reference-architecture-auth0` | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0-cloudflare` |
+
+The Auth0 demo is a separate deployment identity, not a rename of the existing demo. It uses the same Terraform roots and modules with a different state key, resource name prefix, DNS name, and DynamoDB table. Tenant resolution and auth provider selection remain separate axes:
+
+- `reference-architecture.603.nz` keeps `TENANT_RESOLUTION_MODE=subdomain` and `AUTH_PROVIDER=internal_magic_link`.
+- `reference-architecture-auth0.603.nz` uses `TENANT_RESOLUTION_MODE=fixed`, `APP_TENANT_ID=refarch-auth0-demo`, and `AUTH_PROVIDER=oidc`.
+
+Before applying the Auth0 deployment, replace the placeholder `oidc_issuer` and `oidc_audience` values in `terraform/environments/prod-auth0/terraform.tfvars` or override them with `-var` / `TF_VAR_*` values. Do not commit Auth0 secrets. The current backend-only OIDC demo does not need a frontend callback URL, but the Auth0 API audience and issuer must match the access tokens used to call `/api/auth/check`.

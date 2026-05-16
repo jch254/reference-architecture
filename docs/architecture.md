@@ -159,13 +159,22 @@ Authentication must not control tenancy:
 - Auth0 Organizations are not used by default.
 - No workspace, organization routing, RBAC, or user persistence is part of the reference backend auth layer.
 
-### Two-demo direction
+### Public demo deployments
 
-The intended public demos are two separate fixed-tenant deployments rather than one mixed-provider deployment:
+The public demos are separate deployment identities rather than one mixed-provider deployment:
 
-| Host | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
-|---|---|---|---|
-| `reference-architecture.603.nz` | `fixed` | `refarch-magic-demo` | `internal_magic_link` |
-| `reference-architecture-auth0.603.nz` | `fixed` | `refarch-auth0-demo` | `oidc` |
+| Host | Purpose | Terraform var file | State key | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
+|---|---|---|---|---|---|---|
+| `reference-architecture.603.nz` | Existing/default demo | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture` | `subdomain` | — | `internal_magic_link` |
+| `reference-architecture-auth0.603.nz` | Auth0/OIDC backend demo | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `fixed` | `refarch-auth0-demo` | `oidc` |
 
-The current Terraform root creates one deployment at a time. Wiring both demos as separate deployments is a later infrastructure task.
+The Auth0 deployment uses its own DynamoDB table, derived from `name = "reference-architecture-auth0"`, while preserving the logical tenant key `PK = TENANT#refarch-auth0-demo`. It does not select tables dynamically from request tenants.
+
+The Auth0 demo is backend-only until a frontend Auth0 login flow is added. Verify it with a real Auth0 access token for the configured audience:
+
+```bash
+curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  https://reference-architecture-auth0.603.nz/api/auth/check
+```
+
+Auth0 dashboard setup is manual: configure an API audience matching `OIDC_AUDIENCE`, use the Auth0 tenant issuer as `OIDC_ISSUER`, and only add callback/logout/origin URLs when a browser login flow is introduced. For that future flow, use `https://reference-architecture-auth0.603.nz` as the origin/logout base.

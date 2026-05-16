@@ -6,9 +6,6 @@ env:
   exported-variables:
     - COMMIT_MESSAGE
     - COMMIT_SHA
-  parameter-store:
-    CLOUDFLARE_API_TOKEN: "/reference-architecture/cloudflare-api-token"
-    COOKIE_SECRET: "/reference-architecture/cookie-secret"
 
 phases:
   install:
@@ -59,10 +56,30 @@ phases:
       - echo Waiting for ECS service to stabilise...
       - aws ecs wait services-stable --cluster $CLUSTER_NAME --services $SERVICE_NAME
       - echo AWS deployment completed
+      - |
+        export CLOUDFLARE_API_TOKEN="$(
+          aws ssm get-parameter \
+            --name "${CLOUDFLARE_API_TOKEN_PARAMETER_NAME:-/reference-architecture/cloudflare-api-token}" \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text
+        )"
       - ./infrastructure/terraform/cloudflare/deploy-cloudflare.bash
       - echo Deployment completed
-      - echo Running system validation...
-      - BASE_URL=https://reference-architecture.603.nz pnpm run validate
+      - |
+        if [ "${RUN_SYSTEM_VALIDATION:-true}" = "true" ]; then
+          echo Running system validation...
+          export COOKIE_SECRET="$(
+            aws ssm get-parameter \
+              --name "${COOKIE_SECRET_PARAMETER_NAME:-/reference-architecture/cookie-secret}" \
+              --with-decryption \
+              --query Parameter.Value \
+              --output text
+          )"
+          BASE_URL="${VALIDATION_BASE_URL:-https://reference-architecture.603.nz}" pnpm run validate
+        else
+          echo "System validation skipped for this deployment"
+        fi
 
 cache:
   paths:

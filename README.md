@@ -8,7 +8,10 @@ Minimal, production-ready backend architecture.
 - no domain logic  
 - no async/background systems  
 
-**Live:** [reference-architecture.603.nz](https://reference-architecture.603.nz)
+**Live demos:**
+
+- [reference-architecture.603.nz](https://reference-architecture.603.nz)
+- [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC deployment config
 
 ---
 
@@ -159,14 +162,30 @@ The active provider normalizes into:
 
 Authentication does not control tenancy. Tenant id still comes only from `TenantResolver` according to `TENANT_RESOLUTION_MODE`; JWT tenant, organization, or custom claims are ignored for tenant resolution. Auth0 Organizations are not used by default.
 
-Planned separate fixed-tenant demos:
+Current deployment matrix:
 
-| Host | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
-|---|---|---|---|
-| `reference-architecture.603.nz` | `fixed` | `refarch-magic-demo` | `internal_magic_link` |
-| `reference-architecture-auth0.603.nz` | `fixed` | `refarch-auth0-demo` | `oidc` |
+| Host | Purpose | Terraform var file | State key | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
+|---|---|---|---|---|---|---|
+| `reference-architecture.603.nz` | Existing/default demo | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture` | `subdomain` | — | `internal_magic_link` |
+| `reference-architecture-auth0.603.nz` | Auth0/OIDC backend demo | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `fixed` | `refarch-auth0-demo` | `oidc` |
 
-The current Terraform root models one deployment at a time. Multi-demo deployment wiring is intentionally left for a later task.
+The Terraform root still models one deployment identity at a time. The Auth0 demo is a second state/var-file deployment using the same modules and app code, so `reference-architecture.603.nz` keeps its existing resource names and state while `reference-architecture-auth0.603.nz` gets its own ECS service, task definition, API custom domain, certificate, CodeBuild project, SSM placeholders, and DynamoDB table named from `reference-architecture-auth0`.
+
+The Auth0 demo is backend-only for now. The frontend does not include an Auth0 login/logout flow yet, so post-deploy magic-link validation is disabled for that deployment. To verify OIDC auth manually, fetch a real Auth0 access token for the configured API audience and call:
+
+```bash
+curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  https://reference-architecture-auth0.603.nz/api/auth/check
+```
+
+Expected success returns `authenticated: true` with an OIDC principal. Magic-link bearer tokens and session cookies should be rejected by this deployment.
+
+Manual Auth0 dashboard setup for `reference-architecture-auth0.603.nz`:
+
+- Create or choose an Auth0 API and set its identifier to the `oidc_audience` value used in Terraform.
+- Set `oidc_issuer` to the Auth0 tenant issuer, for example `https://your-tenant.region.auth0.com/`.
+- Leave `oidc_jwks_uri` unset unless Auth0 requires an explicit JWKS URI override; the backend derives `/.well-known/jwks.json`.
+- If a future browser login is added, use `https://reference-architecture-auth0.603.nz` for allowed web origins and logout URLs, and add the future callback URL used by that frontend flow. No callback URL is required for the current backend-only bearer-token check.
 
 ---
 

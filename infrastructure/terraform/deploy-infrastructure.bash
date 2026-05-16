@@ -3,6 +3,8 @@
 echo Deploying infrastructure via Terraform...
 
 cd infrastructure/terraform
+TF_VAR_FILE="${TF_VAR_FILE:-environments/prod/terraform.tfvars}"
+
 terraform init \
   -reconfigure \
   -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
@@ -12,7 +14,7 @@ terraform init \
 
 terraform plan -detailed-exitcode \
   -refresh=false \
-  -var-file=environments/prod/terraform.tfvars \
+  -var-file="${TF_VAR_FILE}" \
   -var="image_tag=${IMAGE_TAG}" \
   -out main.tfplan || TF_EXIT=$?
 
@@ -49,7 +51,7 @@ sys.exit(1)
     terraform apply -auto-approve \
       -target=module.codebuild_terraform_role.aws_iam_role.this \
       -target=module.codebuild_terraform_role.aws_iam_role_policy.this \
-      -var-file=environments/prod/terraform.tfvars \
+      -var-file="${TF_VAR_FILE}" \
       -var="image_tag=${IMAGE_TAG}"
 
     echo "Waiting for IAM propagation..."
@@ -65,7 +67,7 @@ sys.exit(1)
     TF_EXIT=0
     terraform plan -detailed-exitcode \
       -refresh=false \
-      -var-file=environments/prod/terraform.tfvars \
+      -var-file="${TF_VAR_FILE}" \
       -var="image_tag=${IMAGE_TAG}" \
       -out main.tfplan || TF_EXIT=$?
 

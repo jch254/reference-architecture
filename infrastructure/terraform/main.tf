@@ -7,6 +7,9 @@ data "aws_caller_identity" "current" {}
 locals {
   build_notifier_region              = coalesce(var.build_notifier_region, var.region)
   build_notifier_lambda_function_arn = "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.build_notifier_lambda_function_name}"
+  terraform_state_key                = coalesce(var.terraform_state_key, var.name)
+  validation_base_url                = coalesce(var.validation_base_url, "https://${var.dns_name}")
+  cloudflare_api_token_parameter_arn = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${trimprefix(var.cloudflare_api_token_ssm_parameter_name, "/")}"
 }
 
 data "aws_subnets" "public" {
@@ -209,6 +212,9 @@ module "codebuild_terraform_role" {
   enable_acm                = true
 
   codebuild_project_arns = ["*"]
+  ssm_parameter_arns = [
+    local.cloudflare_api_token_parameter_arn,
+  ]
 
   prefix_managed_services = [
     "iam_role",
@@ -260,6 +266,12 @@ module "codebuild_project" {
     { name = "SERVICE_NAME", value = module.ecs_http_service.service_name },
     { name = "CLOUDFLARE_DOMAIN", value = var.cloudflare_domain },
     { name = "CLOUDFLARE_SUBDOMAIN", value = var.cloudflare_subdomain },
+    { name = "CLOUDFLARE_API_TOKEN_PARAMETER_NAME", value = var.cloudflare_api_token_ssm_parameter_name },
+    { name = "COOKIE_SECRET_PARAMETER_NAME", value = module.cookie_secret.name },
+    { name = "TF_STATE_KEY", value = local.terraform_state_key },
+    { name = "TF_VAR_FILE", value = var.terraform_var_file },
+    { name = "VALIDATION_BASE_URL", value = local.validation_base_url },
+    { name = "RUN_SYSTEM_VALIDATION", value = tostring(var.run_system_validation) },
   ]
 }
 
