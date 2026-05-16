@@ -29,6 +29,7 @@ buildspec.yml     → CI/CD (CodeBuild)
 
 - stateless API  
 - tenant-aware data model  
+- configurable tenant resolution
 - minimal and explicit  
 - no overengineering  
 - append-only analytics  
@@ -69,6 +70,9 @@ This architecture follows the core ideas of the [Twelve-Factor App](https://12fa
 - **Multi-tenancy as a first-class constraint**  
   Tenant isolation is enforced at the data and service layers.
 
+- **Tenant resolution by deployment**
+  Single-product apps can use a fixed tenant id, while SaaS/workspace-style apps can keep subdomain tenant resolution.
+
 ---
 
 ### Guiding invariant
@@ -94,6 +98,28 @@ Docker + CodeBuild + Terraform. Cloudflare for DNS.
 Reusable AWS and Cloudflare infrastructure primitives are composed from [`jch254/terraform-modules`](https://github.com/jch254/terraform-modules), while app-specific configuration stays local in this repo. The AWS and Cloudflare Terraform roots remain separate so DNS can continue to read AWS outputs through remote state.
 
 See [infrastructure/README.md](infrastructure/README.md) for details.
+
+### Tenant resolution modes
+
+Set `TENANT_RESOLUTION_MODE` for each deployment:
+
+| Mode | Required config | Use when |
+|---|---|---|
+| `fixed` | `APP_TENANT_ID` | One product/deployment maps to one internal tenant |
+| `subdomain` | `BASE_DOMAIN` | Tenants are derived from workspace subdomains |
+
+Fixed mode examples:
+
+| Host | `APP_TENANT_ID` |
+|---|---|
+| `app.handscape.health` | `handscape-prod` |
+| `test.handscape.health` | `handscape-test` |
+
+The tenant id represents the deployment/environment, not a user-facing workspace. Products like Handscape should not expose tenant, workspace, or organization concepts to users.
+
+Subdomain mode preserves the original Reference Architecture pattern: `acme.yourdomain.com` resolves to tenant `acme`, while the apex domain and localhost resolve to `default`.
+
+Existing DynamoDB keys remain tenant-aware: `PK = TENANT#<tenantId>`. Global app content can live under the configured tenant. Private future resources should still add `userId` scoping once auth/user ownership is added.
 
 ---
 

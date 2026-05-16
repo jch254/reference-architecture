@@ -4,6 +4,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { RequestContextMiddleware } from './common/context/request-context.middleware';
 import { TenantMiddleware } from './common/context/tenant.middleware';
+import { TenantResolver } from './common/context/tenant.resolver';
 import { DynamoDbModule } from './common/dynamodb/dynamodb.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ExampleModule } from './modules/example/example.module';
@@ -22,6 +23,7 @@ import { ExampleModule } from './modules/example/example.module';
     AuthModule,
     ExampleModule,
   ],
+  providers: [TenantResolver],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

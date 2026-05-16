@@ -1,4 +1,6 @@
 process.env.DYNAMODB_TABLE = 'test-table';
+process.env.TENANT_RESOLUTION_MODE = 'fixed';
+process.env.APP_TENANT_ID = 'test-tenant';
 process.env.AWS_REGION = 'us-east-1';
 process.env.COOKIE_SECRET = 'test-cookie-secret';
 process.env.EMAIL_MODE = 'noop';

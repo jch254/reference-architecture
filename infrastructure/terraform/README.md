@@ -72,6 +72,8 @@ After bootstrap, all subsequent deploys run automatically via CodeBuild.
 | `region` | AWS region to deploy to | yes | — |
 | `name` | Name of project (used in AWS resource names) | yes | — |
 | `environment` | Environment (e.g. prod) | no | `"prod"` |
+| `tenant_resolution_mode` | Tenant resolution strategy: `fixed` or `subdomain` | no | `"subdomain"` |
+| `app_tenant_id` | Fixed tenant id for this deployed app/environment; required when `tenant_resolution_mode = "fixed"` | no | `null` |
 | `vpc_id` | ID of existing VPC to use | yes | — |
 | `image_tag` | Docker image tag to deploy | no | `"latest"` |
 | `build_docker_image` | Docker image to use as CodeBuild build environment | yes | — |

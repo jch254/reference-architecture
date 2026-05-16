@@ -53,26 +53,6 @@ body {
   margin-bottom: var(--space-sm);
 }
 
-/* ── Tenant badge ── */
-.tenant {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 0.813rem;
-  color: var(--color-muted);
-  margin-bottom: var(--space-xl);
-}
-
-.tenant-value {
-  font-weight: 600;
-  color: var(--color-text);
-  background: var(--color-bg-subtle);
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-}
-
 /* ── Sections ── */
 .section {
   margin-bottom: var(--space-lg);

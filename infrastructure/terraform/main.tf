@@ -51,28 +51,40 @@ module "ecs_http_service" {
   log_region            = var.region
   log_stream_prefix     = "ecs"
 
-  environment_variables = [
-    {
-      name  = "PORT"
-      value = "3000"
-    },
-    {
-      name  = "DYNAMODB_TABLE"
-      value = module.dynamodb_single_table.table_name
-    },
-    {
-      name  = "AWS_REGION"
-      value = var.region
-    },
-    {
-      name  = "BASE_DOMAIN"
-      value = var.cloudflare_domain
-    },
-    {
-      name  = "RESEND_FROM_EMAIL"
-      value = var.resend_from_email
-    }
-  ]
+  environment_variables = concat(
+    [
+      {
+        name  = "PORT"
+        value = "3000"
+      },
+      {
+        name  = "DYNAMODB_TABLE"
+        value = module.dynamodb_single_table.table_name
+      },
+      {
+        name  = "TENANT_RESOLUTION_MODE"
+        value = var.tenant_resolution_mode
+      },
+      {
+        name  = "AWS_REGION"
+        value = var.region
+      },
+      {
+        name  = "BASE_DOMAIN"
+        value = var.tenant_resolution_mode == "fixed" ? var.dns_name : var.cloudflare_domain
+      },
+      {
+        name  = "RESEND_FROM_EMAIL"
+        value = var.resend_from_email
+      }
+    ],
+    var.app_tenant_id == null ? [] : [
+      {
+        name  = "APP_TENANT_ID"
+        value = var.app_tenant_id
+      }
+    ],
+  )
 
   secrets = [
     {

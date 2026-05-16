@@ -30,7 +30,6 @@ function createMockContext(overrides: {
 describe('AuthGuard — session isolation', () => {
   let guard: AuthGuard;
   let mockAuthService: Record<string, jest.Mock>;
-  let mockReflector: Reflector;
 
   beforeEach(async () => {
     mockAuthService = {
@@ -48,7 +47,6 @@ describe('AuthGuard — session isolation', () => {
     }).compile();
 
     guard = module.get<AuthGuard>(AuthGuard);
-    mockReflector = module.get<Reflector>(Reflector);
   });
 
   describe('Bearer token path', () => {

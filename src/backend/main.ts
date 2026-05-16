@@ -21,10 +21,13 @@ async function bootstrap(): Promise<void> {
   app.set('trust proxy', 1);
 
   const isLocal = config.baseDomain === 'localhost';
+  const escapedBaseDomain = config.baseDomain.replace(/\./g, '\\.');
   app.enableCors({
     origin: isLocal
       ? true
-      : [new RegExp(`https?://([^.]+\\.)?${config.baseDomain.replace('.', '\\.')}`)],
+      : config.tenantResolutionMode === 'fixed'
+        ? [new RegExp(`^https?://${escapedBaseDomain}$`)]
+        : [new RegExp(`^https?://([^.]+\\.)?${escapedBaseDomain}$`)],
     credentials: true,
   });
   app.setGlobalPrefix('api');

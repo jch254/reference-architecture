@@ -11,8 +11,6 @@ interface Example {
 
 type AuthState = 'loading' | 'unauthenticated' | 'sent' | 'authenticated';
 
-const tenant = window.location.hostname.split('.')[0];
-
 export function App() {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [sessionEmail, setSessionEmail] = useState('');
@@ -172,9 +170,6 @@ export function App() {
     return (
       <div className="app-container">
         <h1 className="app-title">Reference Architecture Demo</h1>
-        <div className="tenant">
-          Tenant <span className="tenant-value">{tenant}</span>
-        </div>
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
       </div>
@@ -184,10 +179,6 @@ export function App() {
   return (
     <div className="app-container">
       <h1 className="app-title">Reference Architecture Demo</h1>
-
-      <div className="tenant">
-        Tenant <span className="tenant-value">{tenant}</span>
-      </div>
 
       <hr className="section-divider" />
 

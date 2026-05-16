@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 
 import { AnalyticsService } from '../../common/analytics/analytics.service';
 import { config } from '../../common/config';
+import { requestContextStore } from '../../common/context/request-context.store';
+import { TenantResolver } from '../../common/context/tenant.resolver';
 import {
   BaseEntity,
   extractId,
@@ -30,17 +32,15 @@ export class ExampleService {
   constructor(
     private readonly dynamoDb: DynamoDbService,
     private readonly analytics: AnalyticsService,
+    private readonly tenantResolver: TenantResolver,
   ) {}
 
   getHealth(): { status: string } {
     return { status: 'ok' };
   }
 
-  async createExample(
-    tenantSlug: string,
-    name: string,
-  ): Promise<Example> {
-    const tenantId = tenantSlug;
+  async createExample(name: string): Promise<Example> {
+    const tenantId = this.resolveTenantId();
     const entityId = randomUUID().slice(0, 8);
     const now = new Date().toISOString();
     const keys = Keys.tenantEntity(tenantId, 'EXAMPLE', entityId);
@@ -63,8 +63,8 @@ export class ExampleService {
     return this.toExample(item);
   }
 
-  async listExamples(tenantSlug: string): Promise<Example[]> {
-    const tenantId = tenantSlug;
+  async listExamples(): Promise<Example[]> {
+    const tenantId = this.resolveTenantId();
     const items = await this.dynamoDb.query<ExampleEntity>(
       this.tableName,
       'PK = :pk AND begins_with(SK, :skPrefix)',
@@ -82,11 +82,10 @@ export class ExampleService {
   }
 
   async updateExample(
-    tenantSlug: string,
     id: string,
     name: string,
   ): Promise<Example | null> {
-    const tenantId = tenantSlug;
+    const tenantId = this.resolveTenantId();
     const keys = Keys.tenantEntity(tenantId, 'EXAMPLE', id);
     const now = new Date().toISOString();
 
@@ -104,8 +103,8 @@ export class ExampleService {
     return this.toExample(updated);
   }
 
-  async deleteExample(tenantSlug: string, id: string): Promise<void> {
-    const tenantId = tenantSlug;
+  async deleteExample(id: string): Promise<void> {
+    const tenantId = this.resolveTenantId();
     const keys = Keys.tenantEntity(tenantId, 'EXAMPLE', id);
 
     await this.dynamoDb.deleteItem(this.tableName, keys);
@@ -119,5 +118,12 @@ export class ExampleService {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
+  }
+
+  private resolveTenantId(): string {
+    return (
+      requestContextStore.getStore()?.tenantSlug ||
+      this.tenantResolver.resolveTenantId()
+    );
   }
 }

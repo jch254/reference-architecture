@@ -103,7 +103,6 @@ describe('AuthService — token isolation', () => {
 
   describe('validateApiToken — cross-session isolation', () => {
     const tenantAEmail = 'admin@tenant-a.com';
-    const tenantBEmail = 'admin@tenant-b.com';
 
     it('should validate a token for the correct tenant', async () => {
       const rawToken = randomBytes(32).toString('hex');

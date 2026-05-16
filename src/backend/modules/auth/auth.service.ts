@@ -226,7 +226,9 @@ export class AuthService {
     const protocol = config.baseDomain === 'localhost' ? 'http' : 'https';
     const host = config.baseDomain === 'localhost'
       ? `localhost:${config.port}`
-      : `${tenantSlug}.${config.baseDomain}`;
+      : config.tenantResolutionMode === 'fixed'
+        ? config.baseDomain
+        : `${tenantSlug}.${config.baseDomain}`;
     // Web link opens the deep-link redirect page (NOT the API endpoint)
     const webLink = `${protocol}://${host}/auth/verify?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(email)}&source=email`;
     const appLink = `referenceapp://auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}&source=email`;

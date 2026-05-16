@@ -14,6 +14,23 @@ variable "environment" {
   default     = "prod"
 }
 
+variable "tenant_resolution_mode" {
+  description = "Tenant resolution strategy: fixed for one deployment tenant, subdomain for workspace/SaaS-style tenants"
+  type        = string
+  default     = "subdomain"
+
+  validation {
+    condition     = contains(["fixed", "subdomain"], var.tenant_resolution_mode)
+    error_message = "tenant_resolution_mode must be either fixed or subdomain."
+  }
+}
+
+variable "app_tenant_id" {
+  description = "Fixed tenant id for this deployed app/environment. Required when tenant_resolution_mode is fixed."
+  type        = string
+  default     = null
+}
+
 variable "vpc_id" {
   description = "ID of existing VPC to use"
   type        = string

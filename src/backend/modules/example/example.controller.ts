@@ -8,9 +8,7 @@ import {
   Param,
   Patch,
   Post,
-  Req,
 } from '@nestjs/common';
-import { Request } from 'express';
 
 import { Public } from '../auth/auth.guard';
 import { ExampleService } from './example.service';
@@ -27,35 +25,29 @@ export class ExampleController {
 
   @Post('example')
   async createExample(
-    @Req() req: Request,
     @Body() body: { name: string },
   ) {
     if (!body.name) throw new BadRequestException('name is required');
 
-    const example = await this.exampleService.createExample(
-      req.user!.tenantSlug,
-      body.name,
-    );
+    const example = await this.exampleService.createExample(body.name);
     return example;
   }
 
   @Public()
   @Get('example')
-  async listExamples(@Req() req: Request) {
-    const examples = await this.exampleService.listExamples(req.tenantSlug);
+  async listExamples() {
+    const examples = await this.exampleService.listExamples();
     return examples;
   }
 
   @Patch('example/:id')
   async updateExample(
-    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: { name: string },
   ) {
     if (!body.name) throw new BadRequestException('name is required');
 
     const example = await this.exampleService.updateExample(
-      req.user!.tenantSlug,
       id,
       body.name,
     );
@@ -64,8 +56,8 @@ export class ExampleController {
   }
 
   @Delete('example/:id')
-  async deleteExample(@Req() req: Request, @Param('id') id: string) {
-    await this.exampleService.deleteExample(req.user!.tenantSlug, id);
+  async deleteExample(@Param('id') id: string) {
+    await this.exampleService.deleteExample(id);
     return { id };
   }
 }

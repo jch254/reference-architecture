@@ -1,6 +1,8 @@
 region = "ap-southeast-4"
 name   = "reference-architecture"
 
+tenant_resolution_mode = "subdomain"
+
 vpc_id = "vpc-0844e8018ce450134"
 
 build_docker_image = "jch254/docker-node-terraform-aws"
