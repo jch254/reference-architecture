@@ -22,6 +22,10 @@ data "cloudflare_zone" "zone" {
   }
 }
 
+locals {
+  api_gateway_custom_domain_target = try(data.terraform_remote_state.aws.outputs.api_gateway_custom_domain_target, null)
+}
+
 # ACM certificate DNS validation
 module "acm_validation_records" {
   source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.15.0"
@@ -41,11 +45,11 @@ module "api_dns" {
   source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.15.0"
 
   zone_id = data.cloudflare_zone.zone.id
-  records = {
+  records = local.api_gateway_custom_domain_target == null ? {} : {
     main = {
       name    = var.subdomain
       type    = "CNAME"
-      content = data.terraform_remote_state.aws.outputs.api_gateway_custom_domain_target
+      content = local.api_gateway_custom_domain_target
       proxied = true
       ttl     = 1
     }

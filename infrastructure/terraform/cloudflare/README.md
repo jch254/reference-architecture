@@ -25,4 +25,4 @@ The `moved.tf` blocks are intentionally retained so existing Cloudflare records 
 
 ## Deployment
 
-Initial apply is manual. Subsequent applies run automatically via CodeBuild after the AWS layer stabilises.
+Initial bootstrap is staged. The first Cloudflare apply can create ACM validation records before the AWS layer has produced the API Gateway custom-domain output; the app CNAME is created by the later full Cloudflare apply after the AWS custom domain exists. Subsequent applies run automatically via CodeBuild after the AWS layer stabilises.

@@ -54,12 +54,72 @@ Public subnets only. ECS tasks get public IPs. VPC Link security group restricts
 
 ACM certificate requires DNS validation via Cloudflare, but Cloudflare depends on AWS outputs. First deploy requires targeted applies:
 
-1. `terraform apply -target=module.acm_certificate.aws_acm_certificate.main` (AWS layer)
-2. `terraform apply -target=module.acm_validation_records.cloudflare_dns_record.acm_validation` (Cloudflare layer)
-3. Wait for ACM validation
-4. Full apply on both layers
+1. Apply the ACM certificate in the AWS layer:
+   `terraform apply -target=module.acm_certificate.aws_acm_certificate.main`
+2. Apply the Cloudflare layer. On this first pass it creates only the ACM validation records because the API Gateway custom-domain output does not exist yet.
+3. Wait for ACM validation.
+4. Apply the full AWS layer. This creates the API Gateway custom domain and the remaining app resources.
+5. Apply the full Cloudflare layer again. This creates the app CNAME once the API Gateway target output exists.
 
 After bootstrap, all subsequent deploys run automatically via CodeBuild.
+
+For the Auth0 deployment identity, use the Auth0 state key and var file throughout:
+
+```bash
+export REMOTE_STATE_BUCKET="jch254-terraform-remote-state"
+export AWS_DEFAULT_REGION="ap-southeast-4"
+export TF_STATE_KEY="reference-architecture-auth0"
+export TF_VAR_FILE="environments/prod-auth0/terraform.tfvars"
+
+cd infrastructure/terraform
+terraform init -reconfigure \
+  -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
+  -backend-config "key=${TF_STATE_KEY}" \
+  -backend-config "region=${AWS_DEFAULT_REGION}" \
+  -get=true
+terraform apply \
+  -var-file="${TF_VAR_FILE}" \
+  -target=module.acm_certificate.aws_acm_certificate.main
+
+export CLOUDFLARE_API_TOKEN="$(
+  aws ssm get-parameter \
+    --name "/reference-architecture/cloudflare-api-token" \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text
+)"
+
+cd cloudflare
+terraform init -reconfigure \
+  -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
+  -backend-config "key=${TF_STATE_KEY}-cloudflare" \
+  -backend-config "region=${AWS_DEFAULT_REGION}" \
+  -get=true
+terraform apply \
+  -var="cloudflare_api_token=${CLOUDFLARE_API_TOKEN}" \
+  -var="domain=603.nz" \
+  -var="subdomain=reference-architecture-auth0" \
+  -var="aws_region=${AWS_DEFAULT_REGION}" \
+  -var="aws_state_bucket=${REMOTE_STATE_BUCKET}" \
+  -var="aws_state_key=${TF_STATE_KEY}"
+
+# After ACM is ISSUED:
+cd ..
+terraform apply \
+  -var-file="${TF_VAR_FILE}" \
+  -var="image_tag=${IMAGE_TAG:-latest}"
+
+cd cloudflare
+terraform apply \
+  -var="cloudflare_api_token=${CLOUDFLARE_API_TOKEN}" \
+  -var="domain=603.nz" \
+  -var="subdomain=reference-architecture-auth0" \
+  -var="aws_region=${AWS_DEFAULT_REGION}" \
+  -var="aws_state_bucket=${REMOTE_STATE_BUCKET}" \
+  -var="aws_state_key=${TF_STATE_KEY}"
+```
+
+The first full AWS apply creates the Auth0 CodeBuild project and webhook. If the selected image tag is not present in the new Auth0 ECR repo yet, the ECS service can be unhealthy until the first Auth0 CodeBuild run builds and pushes that commit's image.
 
 ## Pipeline flow
 
