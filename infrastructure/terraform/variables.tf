@@ -4,18 +4,18 @@ variable "region" {
 }
 
 variable "name" {
-  description = "Name of project (used in AWS resource names)"
+  description = "Deployment name used in AWS resource names. Include the product/environment boundary here (for example product-prod or product-test); the DynamoDB table is derived from this name."
   type        = string
 }
 
 variable "environment" {
-  description = "Environment (e.g. prod)"
+  description = "Environment tag for this deployment (e.g. prod). Physical isolation still comes from the deployment/table identity, not tenant resolution mode."
   type        = string
   default     = "prod"
 }
 
 variable "tenant_resolution_mode" {
-  description = "Tenant resolution strategy: fixed for one deployment tenant, subdomain for workspace/SaaS-style tenants"
+  description = "Runtime tenant resolution strategy: fixed resolves every request to app_tenant_id, subdomain resolves from Host. This does not choose the DynamoDB table."
   type        = string
   default     = "subdomain"
 
@@ -26,9 +26,14 @@ variable "tenant_resolution_mode" {
 }
 
 variable "app_tenant_id" {
-  description = "Fixed tenant id for this deployed app/environment. Required when tenant_resolution_mode is fixed."
+  description = "Fixed runtime tenant id for this deployed app/environment. Required when tenant_resolution_mode is fixed; not a substitute for a deployment-specific DynamoDB table."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.app_tenant_id == null || length(trimspace(var.app_tenant_id)) > 0
+    error_message = "app_tenant_id must be null or a non-empty string."
+  }
 }
 
 variable "vpc_id" {

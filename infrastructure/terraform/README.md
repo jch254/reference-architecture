@@ -9,7 +9,7 @@ ECS Fargate behind API Gateway HTTP API. No ALB — API Gateway connects directl
 - ECS Fargate - single service, single container. Rolling deploys with circuit breaker.
 - API Gateway HTTP API - regional custom domain with ACM TLS cert. VPC Link to Cloud Map.
 - Cloud Map - private DNS namespace. ECS registers tasks automatically.
-- DynamoDB - single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, DeleteItem, Query.
+- DynamoDB - deployment-specific single table, PAY_PER_REQUEST. ECS task role scoped to GetItem, PutItem, UpdateItem, DeleteItem, Query.
 - CodeBuild - build, Docker push to ECR, Terraform apply, ECS stabilise, then Cloudflare apply. Post-deploy system validation. Build notifications use an app-owned EventBridge rule targeting the shared-platform notifier.
 - `cloudflare/` — DNS layer. See [cloudflare/README.md](cloudflare/README.md).
 
@@ -65,15 +65,37 @@ After bootstrap, all subsequent deploys run automatically via CodeBuild.
 
 `buildspec.yml` → build → Docker push to ECR → Terraform plan/apply → ECS stabilise → Cloudflare Terraform plan/apply → system validation.
 
+## Tenant and DynamoDB isolation
+
+Tenant resolution and table isolation are separate choices:
+
+- `TENANT_RESOLUTION_MODE` controls how the app resolves the runtime tenant id.
+- The DynamoDB table name controls physical data isolation.
+- `APP_TENANT_ID` is not a substitute for table isolation.
+- The AWS root creates one DynamoDB table from `var.name`: `${var.name}-entities`.
+
+For fixed-mode product deployments, choose a distinct deployment `name` per product/environment so each deployment gets its own table. For example, a production deployment can use `name = "product-prod"` with `APP_TENANT_ID=product-prod`, while a test deployment can use `name = "product-test"` with `APP_TENANT_ID=product-test`.
+
+For subdomain-mode deployments, one product/environment table can intentionally hold many runtime tenant partitions. For example, `name = "product-prod"` creates `product-prod-entities`, and tenant keys can include `TENANT#acme`, `TENANT#demo`, and `TENANT#jordan`.
+
+Both modes keep the same logical key shape:
+
+```
+PK = TENANT#<tenantId>
+SK = ...
+```
+
+Persisted tenant fields such as `tenantSlug` should remain on records that store them in both modes. Do not remove `TENANT#` prefixes or route each request to a tenant-derived table in fixed mode.
+
 ## Variables
 
 | Name | Description | Required | Default |
 | ---- | ----------- | -------- | ------- |
 | `region` | AWS region to deploy to | yes | — |
-| `name` | Name of project (used in AWS resource names) | yes | — |
-| `environment` | Environment (e.g. prod) | no | `"prod"` |
-| `tenant_resolution_mode` | Tenant resolution strategy: `fixed` or `subdomain` | no | `"subdomain"` |
-| `app_tenant_id` | Fixed tenant id for this deployed app/environment; required when `tenant_resolution_mode = "fixed"` | no | `null` |
+| `name` | Deployment name used in AWS resource names; include the product/environment boundary because the DynamoDB table is `${name}-entities` | yes | — |
+| `environment` | Environment tag for this deployment; physical isolation still comes from deployment/table identity | no | `"prod"` |
+| `tenant_resolution_mode` | Runtime tenant resolution strategy: `fixed` or `subdomain`; does not choose the DynamoDB table | no | `"subdomain"` |
+| `app_tenant_id` | Fixed runtime tenant id for this deployed app/environment; required when `tenant_resolution_mode = "fixed"` and not a substitute for a deployment-specific table | no | `null` |
 | `vpc_id` | ID of existing VPC to use | yes | — |
 | `image_tag` | Docker image tag to deploy | no | `"latest"` |
 | `build_docker_image` | Docker image to use as CodeBuild build environment | yes | — |

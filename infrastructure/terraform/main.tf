@@ -144,7 +144,8 @@ module "api_gateway_custom_domain" {
   security_policy = "TLS_1_2"
 }
 
-# DynamoDB Table — single-table design
+# DynamoDB Table — one physical table per deployment/product/environment.
+# Runtime tenant resolution only chooses the TENANT# key prefix inside this table.
 module "dynamodb_single_table" {
   source = "github.com/jch254/terraform-modules//dynamodb-single-table?ref=1.15.1"
 

@@ -108,18 +108,24 @@ Set `TENANT_RESOLUTION_MODE` for each deployment:
 | `fixed` | `APP_TENANT_ID` | One product/deployment maps to one internal tenant |
 | `subdomain` | `BASE_DOMAIN` | Tenants are derived from workspace subdomains |
 
+Tenant resolution is runtime logic only. DynamoDB table name and Terraform deployment control physical isolation. `APP_TENANT_ID` is not a substitute for a product/environment-specific table.
+
 Fixed mode examples:
 
-| Host | `APP_TENANT_ID` |
-|---|---|
-| `app.handscape.health` | `handscape-prod` |
-| `test.handscape.health` | `handscape-test` |
+| Host | Table | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | Keys |
+|---|---|---|---|---|
+| `app.example.com` | `product-prod` | `fixed` | `product-prod` | `TENANT#product-prod` |
+| `test.example.com` | `product-test` | `fixed` | `product-test` | `TENANT#product-test` |
 
-The tenant id represents the deployment/environment, not a user-facing workspace. Products like Handscape should not expose tenant, workspace, or organization concepts to users.
+In fixed mode, use one DynamoDB table per product/environment deployment. The tenant id represents the deployment/environment, not a user-facing workspace. Single-product deployments do not need to expose tenant, workspace, or organization concepts to users.
 
-Subdomain mode preserves the original Reference Architecture pattern: `acme.yourdomain.com` resolves to tenant `acme`, while the apex domain and localhost resolve to `default`.
+Subdomain mode preserves the original Reference Architecture pattern: `acme.yourdomain.com` resolves to tenant `acme`, while the apex domain and localhost resolve to `default`. In subdomain mode, a product/environment can intentionally share one table across many runtime tenants:
 
-Existing DynamoDB keys remain tenant-aware: `PK = TENANT#<tenantId>`. Global app content can live under the configured tenant. Private future resources should still add `userId` scoping once auth/user ownership is added.
+| Host pattern | Table | `TENANT_RESOLUTION_MODE` | Keys |
+|---|---|---|---|
+| `*.example.com` | `product-prod` | `subdomain` | `TENANT#acme`, `TENANT#demo`, `TENANT#jordan` |
+
+Existing DynamoDB keys remain tenant-aware in both modes: `PK = TENANT#<tenantId>`. Persisted tenant fields such as `tenantSlug` should remain on records that store them. Global app content can live under the configured tenant. Private future resources should still add `userId` scoping once auth/user ownership is added.
 
 ---
 

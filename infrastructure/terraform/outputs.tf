@@ -4,7 +4,7 @@ output "api_gateway_url" {
 }
 
 output "dynamodb_table_name" {
-  description = "Name of the DynamoDB entities table"
+  description = "Name of the deployment-specific DynamoDB entities table"
   value       = module.dynamodb_single_table.table_name
 }
 

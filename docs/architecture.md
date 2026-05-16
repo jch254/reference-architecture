@@ -12,7 +12,7 @@
 ## Design decisions
 
 - **Stateless** — no session state, no local disk. Horizontally scalable by default.
-- **Tenant-aware** — configurable tenant resolution via middleware. Tenant ID embedded in every DynamoDB partition key — isolation enforced at the data layer. See [Tenant resolution modes](#tenant-resolution-modes) below.
+- **Tenant-aware** — configurable tenant resolution via middleware. Tenant ID embedded in every DynamoDB partition key — logical isolation enforced at the data layer. See [Tenant resolution modes](#tenant-resolution-modes) below.
 - **Single-table DynamoDB** — all entities in one table. `PK = TENANT#<tenantId>`, `SK = <ENTITY_TYPE>#<entityId>`. No GSIs. No scans.
 - **Analytics** — append-only event tracking. Writes to same DynamoDB table (`PK = TENANT#<tenantId>`, `SK = EVENT#<ts>#<name>#<reqId>`). Resolves context via AsyncLocalStorage — callsites pass only event name. Non-blocking (failures logged, never thrown).
 - **Single container** — no ALB, no NAT gateway, no background workers. One container serves API (`/api/*`) and frontend (`/*`).
@@ -30,18 +30,22 @@ Client → Cloudflare (TLS + proxy) → API Gateway (custom domain) → VPC Link
 
 Reference Architecture supports two tenant resolution modes through `TENANT_RESOLUTION_MODE`.
 
+`TENANT_RESOLUTION_MODE` only controls how the runtime resolves `tenantId` for a request. Physical isolation is controlled by the deployed DynamoDB table name and Terraform deployment. `APP_TENANT_ID` is not a substitute for product/environment table isolation.
+
 ### Fixed Mode
 
-`TENANT_RESOLUTION_MODE=fixed` is for single-product apps. It requires `APP_TENANT_ID`, and that tenant id can represent the deployment or environment, not a customer workspace.
+`TENANT_RESOLUTION_MODE=fixed` is for single-product apps. It requires `APP_TENANT_ID`, ignores `Host`, and resolves every request to that fixed tenant id.
+
+Use a deployment-specific DynamoDB table for each fixed-mode product/environment. The fixed tenant id is the logical key prefix inside that table; it is not a reason to share one physical table across unrelated products or environments.
 
 For example:
 
-| Deployment host | `APP_TENANT_ID` |
-|---|---|
-| `app.handscape.health` | `handscape-prod` |
-| `test.handscape.health` | `handscape-test` |
+| Deployment host | DynamoDB table | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | Keys |
+|---|---|---|---|---|
+| `app.example.com` | `product-prod` | `fixed` | `product-prod` | `TENANT#product-prod` |
+| `test.example.com` | `product-test` | `fixed` | `product-test` | `TENANT#product-test` |
 
-Products like Handscape should not expose tenant, workspace, or organization concepts to users. Tenancy remains an internal storage boundary.
+Single-product deployments do not need to expose tenant, workspace, or organization concepts to users. Tenancy remains an internal storage boundary.
 
 ### Subdomain Mode
 
@@ -52,6 +56,12 @@ Products like Handscape should not expose tenant, workspace, or organization con
 | `acme.yourdomain.com` | `acme` |
 | `yourdomain.com` (apex) | `default` |
 | `localhost` | `default` |
+
+In subdomain mode, one product/environment table can intentionally contain many runtime tenant partitions:
+
+| Deployment hosts | DynamoDB table | `TENANT_RESOLUTION_MODE` | Keys |
+|---|---|---|---|
+| `*.example.com` | `product-prod` | `subdomain` | `TENANT#acme`, `TENANT#demo`, `TENANT#jordan` |
 
 ### How tenant resolution works
 
@@ -66,6 +76,10 @@ PK = TENANT#<tenantSlug>   SK = <ENTITY_TYPE>#<entityId>
 ```
 
 Queries always include the `PK` condition, so a tenant can never read or write another tenant's data — enforced at the data layer, not just the application layer.
+
+Both fixed and subdomain modes preserve the same key shape. Fixed mode still writes and queries `TENANT#<APP_TENANT_ID>` inside that deployment's table. Subdomain mode writes and queries `TENANT#<subdomainTenant>` inside the product/environment table. Table name/configuration is independent of the resolved runtime tenant; do not route each request to a different table based on tenant.
+
+Persisted tenant fields such as `tenantSlug` should remain on records that store them in both modes. Do not remove tenant attributes or `TENANT#` prefixes just because a deployment uses fixed mode.
 
 Global app content can live under the configured tenant. Private future resources should still be scoped by `tenantId + userId` once auth/user ownership is added.
 
