@@ -3,8 +3,10 @@ import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { Resend } from 'resend';
 
 import { config } from '../../common/config';
+import { AuthPrincipal } from '../../common/context/identity.types';
 import { DynamoDbService } from '../../common/dynamodb/dynamodb.service';
 import { Keys } from '../../common/dynamodb/entity.types';
+import { buildMagicLinkWebUrl } from './auth-links';
 
 interface AuthTokenRecord {
   PK: string;
@@ -38,7 +40,24 @@ export class AuthService {
 
   constructor(private readonly dynamoDb: DynamoDbService) {}
 
+  isInternalMagicLinkAuthEnabled(): boolean {
+    return config.authProvider === 'internal_magic_link';
+  }
+
+  toMagicLinkPrincipal(email: string): AuthPrincipal {
+    const normalisedEmail = email.toLowerCase().trim();
+    return {
+      provider: 'internal_magic_link',
+      subject: normalisedEmail,
+      email: normalisedEmail,
+    };
+  }
+
   async requestLink(email: string, tenantSlug: string, suppressEmail = false): Promise<string | null> {
+    if (!this.isInternalMagicLinkAuthEnabled()) {
+      throw new UnauthorizedException('Magic-link auth is disabled');
+    }
+
     const normalisedEmail = email.toLowerCase().trim();
 
     // Ensure tenant has an admin record (first user bootstraps it)
@@ -52,6 +71,10 @@ export class AuthService {
   }
 
   async verify(rawToken: string, tenantSlug: string): Promise<{ email: string; tenantSlug: string; sessionVersion: string }> {
+    if (!this.isInternalMagicLinkAuthEnabled()) {
+      throw new UnauthorizedException('Magic-link auth is disabled');
+    }
+
     const tokenHash = this.hashToken(rawToken);
 
     const records = await this.dynamoDb.query<AuthTokenRecord>(
@@ -99,6 +122,8 @@ export class AuthService {
   }
 
   async validateSession(payload: { email: string; tenantSlug: string; iat: number; sessionVersion?: string }, requestTenantSlug: string): Promise<boolean> {
+    if (!this.isInternalMagicLinkAuthEnabled()) return false;
+
     if (payload.tenantSlug !== requestTenantSlug) return false;
 
     const maxAge = config.sessionMaxAgeDays * 24 * 60 * 60 * 1000;
@@ -124,6 +149,10 @@ export class AuthService {
   }
 
   async issueApiToken(email: string, tenantSlug: string): Promise<string> {
+    if (!this.isInternalMagicLinkAuthEnabled()) {
+      throw new UnauthorizedException('Magic-link auth is disabled');
+    }
+
     const normalisedEmail = email.toLowerCase().trim();
 
     const admin = await this.getAdmin(tenantSlug);
@@ -156,6 +185,8 @@ export class AuthService {
   }
 
   async validateApiToken(rawToken: string, tenantSlug: string): Promise<{ email: string; tenantSlug: string } | null> {
+    if (!this.isInternalMagicLinkAuthEnabled()) return null;
+
     const tokenHash = this.hashToken(rawToken);
 
     const records = await this.dynamoDb.query<{
@@ -223,14 +254,15 @@ export class AuthService {
       updatedAt: now,
     });
 
-    const protocol = config.baseDomain === 'localhost' ? 'http' : 'https';
-    const host = config.baseDomain === 'localhost'
-      ? `localhost:${config.port}`
-      : config.tenantResolutionMode === 'fixed'
-        ? config.baseDomain
-        : `${tenantSlug}.${config.baseDomain}`;
     // Web link opens the deep-link redirect page (NOT the API endpoint)
-    const webLink = `${protocol}://${host}/auth/verify?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(email)}&source=email`;
+    const webLink = buildMagicLinkWebUrl({
+      baseDomain: config.baseDomain,
+      port: config.port,
+      tenantResolutionMode: config.tenantResolutionMode,
+      tenantSlug,
+      token: rawToken,
+      email,
+    });
     const appLink = `referenceapp://auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}&source=email`;
 
     if (suppressEmail) {

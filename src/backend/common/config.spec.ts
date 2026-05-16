@@ -11,6 +11,12 @@ describe('config', () => {
       COOKIE_SECRET: 'test-cookie-secret',
       EMAIL_MODE: 'noop',
     };
+    delete process.env.AUTH_PROVIDER;
+    delete process.env.OIDC_AUTH_ENABLED;
+    delete process.env.OIDC_ISSUER;
+    delete process.env.OIDC_AUDIENCE;
+    delete process.env.OIDC_JWKS_URI;
+    delete process.env.MAGIC_LINK_AUTH_ENABLED;
   });
 
   afterEach(() => {
@@ -49,5 +55,85 @@ describe('config', () => {
     expect(() => require('./config')).toThrow(
       'Invalid TENANT_RESOLUTION_MODE: invalid-mode. Expected "fixed" or "subdomain".',
     );
+  });
+
+  it('allows AUTH_PROVIDER=none without OIDC config', () => {
+    process.env.AUTH_PROVIDER = 'none';
+
+    const { config } = require('./config') as typeof import('./config');
+
+    expect(config.authProvider).toBe('none');
+    expect(config.oidc.issuer).toBe('');
+  });
+
+  it('allows AUTH_PROVIDER=internal_magic_link without OIDC config', () => {
+    process.env.AUTH_PROVIDER = 'internal_magic_link';
+
+    const { config } = require('./config') as typeof import('./config');
+
+    expect(config.authProvider).toBe('internal_magic_link');
+    expect(config.oidc.issuer).toBe('');
+  });
+
+  it('requires OIDC_ISSUER when AUTH_PROVIDER=oidc', () => {
+    process.env.AUTH_PROVIDER = 'oidc';
+    process.env.OIDC_AUDIENCE = 'api://reference';
+
+    expect(() => require('./config')).toThrow(
+      'Missing required environment variable: OIDC_ISSUER',
+    );
+  });
+
+  it('requires OIDC_AUDIENCE when AUTH_PROVIDER=oidc', () => {
+    process.env.AUTH_PROVIDER = 'oidc';
+    process.env.OIDC_ISSUER = 'https://example.auth0.com/';
+
+    expect(() => require('./config')).toThrow(
+      'Missing required environment variable: OIDC_AUDIENCE',
+    );
+  });
+
+  it('derives OIDC_JWKS_URI from OIDC_ISSUER when AUTH_PROVIDER=oidc', () => {
+    process.env.AUTH_PROVIDER = 'oidc';
+    process.env.OIDC_ISSUER = 'https://example.auth0.com/';
+    process.env.OIDC_AUDIENCE = 'api://reference';
+
+    const { config } = require('./config') as typeof import('./config');
+
+    expect(config.oidc).toEqual({
+      issuer: 'https://example.auth0.com/',
+      audience: 'api://reference',
+      jwksUri: 'https://example.auth0.com/.well-known/jwks.json',
+    });
+  });
+
+  it('accepts explicit OIDC_JWKS_URI', () => {
+    process.env.AUTH_PROVIDER = 'oidc';
+    process.env.OIDC_ISSUER = 'https://example.auth0.com/';
+    process.env.OIDC_AUDIENCE = 'api://reference';
+    process.env.OIDC_JWKS_URI = 'https://keys.example.com/jwks.json';
+
+    const { config } = require('./config') as typeof import('./config');
+
+    expect(config.oidc.jwksUri).toBe('https://keys.example.com/jwks.json');
+  });
+
+  it('fails clearly for invalid AUTH_PROVIDER', () => {
+    process.env.AUTH_PROVIDER = 'multi';
+
+    expect(() => require('./config')).toThrow(
+      'Invalid AUTH_PROVIDER: multi. Expected "none", "internal_magic_link", or "oidc".',
+    );
+  });
+
+  it('ignores legacy auth flags in favor of AUTH_PROVIDER', () => {
+    process.env.AUTH_PROVIDER = 'internal_magic_link';
+    process.env.MAGIC_LINK_AUTH_ENABLED = 'false';
+    process.env.OIDC_AUTH_ENABLED = 'true';
+
+    const { config } = require('./config') as typeof import('./config');
+
+    expect(config.authProvider).toBe('internal_magic_link');
+    expect(config.oidc.issuer).toBe('');
   });
 });

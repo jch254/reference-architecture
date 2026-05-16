@@ -96,6 +96,10 @@ Persisted tenant fields such as `tenantSlug` should remain on records that store
 | `environment` | Environment tag for this deployment; physical isolation still comes from deployment/table identity | no | `"prod"` |
 | `tenant_resolution_mode` | Runtime tenant resolution strategy: `fixed` or `subdomain`; does not choose the DynamoDB table | no | `"subdomain"` |
 | `app_tenant_id` | Fixed runtime tenant id for this deployed app/environment; required when `tenant_resolution_mode = "fixed"` and not a substitute for a deployment-specific table | no | `null` |
+| `auth_provider` | Primary backend auth provider: `none`, `internal_magic_link`, or `oidc`; dual-provider mode is intentionally not supported | no | `"internal_magic_link"` |
+| `oidc_issuer` | OIDC issuer URL, for example `https://example.auth0.com/`; required by the backend when `auth_provider = "oidc"` | no | `null` |
+| `oidc_audience` | Expected OIDC access-token audience; required by the backend when `auth_provider = "oidc"` | no | `null` |
+| `oidc_jwks_uri` | Optional explicit JWKS URI; if omitted, the backend derives it from `oidc_issuer` | no | `null` |
 | `vpc_id` | ID of existing VPC to use | yes | — |
 | `image_tag` | Docker image tag to deploy | no | `"latest"` |
 | `build_docker_image` | Docker image to use as CodeBuild build environment | yes | — |

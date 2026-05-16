@@ -76,12 +76,34 @@ module "ecs_http_service" {
       {
         name  = "RESEND_FROM_EMAIL"
         value = var.resend_from_email
+      },
+      {
+        name  = "AUTH_PROVIDER"
+        value = var.auth_provider
       }
     ],
     var.app_tenant_id == null ? [] : [
       {
         name  = "APP_TENANT_ID"
         value = var.app_tenant_id
+      }
+    ],
+    var.oidc_issuer == null ? [] : [
+      {
+        name  = "OIDC_ISSUER"
+        value = var.oidc_issuer
+      }
+    ],
+    var.oidc_audience == null ? [] : [
+      {
+        name  = "OIDC_AUDIENCE"
+        value = var.oidc_audience
+      }
+    ],
+    var.oidc_jwks_uri == null ? [] : [
+      {
+        name  = "OIDC_JWKS_URI"
+        value = var.oidc_jwks_uri
       }
     ],
   )

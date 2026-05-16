@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { join } from 'path';
 
 import { AppModule } from './app.module';
+import { buildCorsOrigin } from './common/api/cors';
 import { ApiExceptionFilter } from './common/api/http-exception.filter';
 import { ApiResponseInterceptor } from './common/api/response.interceptor';
 import { config } from './common/config';
@@ -20,14 +21,8 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.set('trust proxy', 1);
 
-  const isLocal = config.baseDomain === 'localhost';
-  const escapedBaseDomain = config.baseDomain.replace(/\./g, '\\.');
   app.enableCors({
-    origin: isLocal
-      ? true
-      : config.tenantResolutionMode === 'fixed'
-        ? [new RegExp(`^https?://${escapedBaseDomain}$`)]
-        : [new RegExp(`^https?://([^.]+\\.)?${escapedBaseDomain}$`)],
+    origin: buildCorsOrigin(config.baseDomain, config.tenantResolutionMode),
     credentials: true,
   });
   app.setGlobalPrefix('api');

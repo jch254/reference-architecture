@@ -36,6 +36,35 @@ variable "app_tenant_id" {
   }
 }
 
+variable "auth_provider" {
+  description = "Primary backend auth provider for this deployment: none, internal_magic_link, or oidc. Dual-provider mode is intentionally not supported."
+  type        = string
+  default     = "internal_magic_link"
+
+  validation {
+    condition     = contains(["none", "internal_magic_link", "oidc"], var.auth_provider)
+    error_message = "auth_provider must be one of: none, internal_magic_link, oidc."
+  }
+}
+
+variable "oidc_issuer" {
+  description = "OIDC issuer URL, for example https://example.auth0.com/. Required by the backend when auth_provider is oidc."
+  type        = string
+  default     = null
+}
+
+variable "oidc_audience" {
+  description = "Expected OIDC access-token audience. Required by the backend when auth_provider is oidc."
+  type        = string
+  default     = null
+}
+
+variable "oidc_jwks_uri" {
+  description = "Optional explicit JWKS URI. If omitted, the backend derives it from oidc_issuer."
+  type        = string
+  default     = null
+}
+
 variable "vpc_id" {
   description = "ID of existing VPC to use"
   type        = string

@@ -1,4 +1,15 @@
-/** Authenticated user identity — set by AuthGuard, decoupled from domain entities */
+export type AuthProvider = 'internal_magic_link' | 'oidc';
+
+/** Provider-neutral authenticated identity, set by AuthGuard. */
+export interface AuthPrincipal {
+  provider: AuthProvider;
+  subject: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+}
+
+/** Legacy magic-link identity — preserved for existing request handlers. */
 export interface UserIdentity {
   email: string;
   tenantSlug: string;
@@ -17,4 +28,5 @@ export interface RequestContext {
   requestId: string;
   tenantSlug: string;
   user: UserIdentity | null;
+  principal?: AuthPrincipal | null;
 }

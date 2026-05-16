@@ -2,15 +2,21 @@ import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { config } from '../../common/config';
+import { AuthProvider } from '../../common/context/identity.types';
 import { requestContextStore } from '../../common/context/request-context.store';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { OidcJwtValidator } from './oidc-jwt.validator';
+
+function magicPrincipal(email: string) {
+  return { provider: 'internal_magic_link' as const, subject: email, email };
+}
 
 function createMockContext(overrides: {
   authorization?: string;
   signedCookies?: Record<string, unknown>;
   tenantSlug?: string;
-  isPublic?: boolean;
 }): { context: ExecutionContext; req: Record<string, unknown> } {
   const req: Record<string, unknown> = {
     headers: { authorization: overrides.authorization },
@@ -27,76 +33,99 @@ function createMockContext(overrides: {
   return { context, req };
 }
 
-describe('AuthGuard — session isolation', () => {
+describe('AuthGuard — selected auth provider resolution', () => {
   let guard: AuthGuard;
+  let reflector: Reflector;
   let mockAuthService: Record<string, jest.Mock>;
+  let mockOidcJwtValidator: Record<string, jest.Mock>;
+
+  function setAuthProvider(provider: AuthProvider | 'none'): void {
+    config.authProvider = provider;
+  }
 
   beforeEach(async () => {
+    setAuthProvider('internal_magic_link');
     mockAuthService = {
       validateApiToken: jest.fn(),
       validateSession: jest.fn(),
       issueApiToken: jest.fn(),
+      isInternalMagicLinkAuthEnabled: jest.fn(() => true),
+      toMagicLinkPrincipal: jest.fn((email: string) => magicPrincipal(email)),
+    };
+    mockOidcJwtValidator = {
+      isEnabled: jest.fn(() => false),
+      validate: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthGuard,
         { provide: AuthService, useValue: mockAuthService },
+        { provide: OidcJwtValidator, useValue: mockOidcJwtValidator },
         Reflector,
       ],
     }).compile();
 
     guard = module.get<AuthGuard>(AuthGuard);
+    reflector = module.get<Reflector>(Reflector);
   });
 
-  describe('Bearer token path', () => {
-    it('should authenticate with a valid Bearer token', async () => {
+  describe('public routes', () => {
+    it('allows public routes such as health without any auth provider', async () => {
+      setAuthProvider('none');
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValueOnce(true);
+      const { context } = createMockContext({ tenantSlug: 'tenant-a' });
+
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+      expect(mockAuthService.validateApiToken).not.toHaveBeenCalled();
+      expect(mockOidcJwtValidator.validate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('AUTH_PROVIDER=oidc', () => {
+    beforeEach(() => {
+      setAuthProvider('oidc');
+    });
+
+    it('accepts a valid OIDC JWT and attaches AuthPrincipal', async () => {
+      const principal = {
+        provider: 'oidc' as const,
+        subject: 'auth0|user-123',
+        email: 'user@example.com',
+        name: 'Example User',
+      };
       const { context, req } = createMockContext({
-        authorization: 'Bearer valid-token-abc',
+        authorization: 'Bearer header.payload.signature',
         tenantSlug: 'tenant-a',
       });
 
-      mockAuthService.validateApiToken.mockResolvedValue({
-        email: 'admin@a.com',
-        tenantSlug: 'tenant-a',
-      });
+      mockOidcJwtValidator.validate.mockResolvedValue(principal);
 
-      const store = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1' };
+      const store = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1', principal: null };
       const result = await requestContextStore.run(store, () => guard.canActivate(context));
 
       expect(result).toBe(true);
-      expect(req.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
-      expect(store.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
-      expect(mockAuthService.validateApiToken).toHaveBeenCalledWith('valid-token-abc', 'tenant-a');
+      expect(req.principal).toEqual(principal);
+      expect(req.user).toBeUndefined();
+      expect(store.principal).toEqual(principal);
+      expect(store.user).toBeNull();
+      expect(mockOidcJwtValidator.validate).toHaveBeenCalledWith('header.payload.signature');
+      expect(mockAuthService.validateApiToken).not.toHaveBeenCalled();
+      expect(mockAuthService.validateSession).not.toHaveBeenCalled();
     });
 
-    it('should reject an invalid Bearer token', async () => {
+    it('rejects a magic-link opaque bearer token', async () => {
       const { context } = createMockContext({
-        authorization: 'Bearer invalid-token',
+        authorization: 'Bearer opaque-magic-token',
         tenantSlug: 'tenant-a',
       });
 
-      mockAuthService.validateApiToken.mockResolvedValue(null);
-
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      expect(mockAuthService.validateApiToken).not.toHaveBeenCalled();
     });
 
-    it('should pass tenantSlug to validateApiToken — no cross-tenant leakage', async () => {
-      // Token valid for tenant-a, presented to tenant-b
+    it('rejects a magic-link session cookie', async () => {
       const { context } = createMockContext({
-        authorization: 'Bearer token-for-tenant-a',
-        tenantSlug: 'tenant-b',
-      });
-
-      mockAuthService.validateApiToken.mockResolvedValue(null); // service rejects cross-tenant
-
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      expect(mockAuthService.validateApiToken).toHaveBeenCalledWith('token-for-tenant-a', 'tenant-b');
-    });
-
-    it('should not fall through to cookie auth when Bearer token is present but invalid', async () => {
-      const { context } = createMockContext({
-        authorization: 'Bearer bad-token',
         tenantSlug: 'tenant-a',
         signedCookies: {
           __session: JSON.stringify({
@@ -108,16 +137,39 @@ describe('AuthGuard — session isolation', () => {
         },
       });
 
-      mockAuthService.validateApiToken.mockResolvedValue(null);
-
-      // Should throw immediately, NOT try the cookie
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
       expect(mockAuthService.validateSession).not.toHaveBeenCalled();
     });
   });
 
-  describe('cookie fallback path', () => {
-    it('should authenticate via signed cookie when no Bearer header', async () => {
+  describe('AUTH_PROVIDER=internal_magic_link', () => {
+    beforeEach(() => {
+      setAuthProvider('internal_magic_link');
+    });
+
+    it('accepts a valid opaque Bearer token', async () => {
+      const { context, req } = createMockContext({
+        authorization: 'Bearer valid-token-abc',
+        tenantSlug: 'tenant-a',
+      });
+
+      mockAuthService.validateApiToken.mockResolvedValue({
+        email: 'admin@a.com',
+        tenantSlug: 'tenant-a',
+      });
+
+      const store = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1', principal: null };
+      const result = await requestContextStore.run(store, () => guard.canActivate(context));
+
+      expect(result).toBe(true);
+      expect(req.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
+      expect(req.principal).toEqual(magicPrincipal('admin@a.com'));
+      expect(store.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
+      expect(store.principal).toEqual(magicPrincipal('admin@a.com'));
+      expect(mockAuthService.validateApiToken).toHaveBeenCalledWith('valid-token-abc', 'tenant-a');
+    });
+
+    it('accepts a valid signed session cookie', async () => {
       const sessionPayload = {
         email: 'admin@a.com',
         tenantSlug: 'tenant-a',
@@ -132,39 +184,39 @@ describe('AuthGuard — session isolation', () => {
 
       mockAuthService.validateSession.mockResolvedValue(true);
 
-      const store = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1' };
+      const store = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1', principal: null };
       const result = await requestContextStore.run(store, () => guard.canActivate(context));
 
       expect(result).toBe(true);
       expect(req.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
+      expect(req.principal).toEqual(magicPrincipal('admin@a.com'));
       expect(mockAuthService.validateApiToken).not.toHaveBeenCalled();
     });
 
-    it('should reject when no Bearer and no cookie', async () => {
-      const { context } = createMockContext({ tenantSlug: 'tenant-a' });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should reject an invalid cookie session', async () => {
+    it('rejects an OIDC JWT bearer token', async () => {
       const { context } = createMockContext({
+        authorization: 'Bearer header.payload.signature',
         tenantSlug: 'tenant-a',
-        signedCookies: {
-          __session: JSON.stringify({
-            email: 'admin@a.com',
-            tenantSlug: 'tenant-a',
-            sessionVersion: 'expired-v',
-            iat: Date.now(),
-          }),
-        },
       });
 
-      mockAuthService.validateSession.mockResolvedValue(false);
-
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      expect(mockOidcJwtValidator.validate).not.toHaveBeenCalled();
+      expect(mockAuthService.validateApiToken).not.toHaveBeenCalled();
     });
 
-    it('should reject malformed cookie JSON', async () => {
+    it('passes tenantSlug to validateApiToken without trusting token claims for tenancy', async () => {
+      const { context } = createMockContext({
+        authorization: 'Bearer token-for-tenant-a',
+        tenantSlug: 'tenant-b',
+      });
+
+      mockAuthService.validateApiToken.mockResolvedValue(null);
+
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      expect(mockAuthService.validateApiToken).toHaveBeenCalledWith('token-for-tenant-a', 'tenant-b');
+    });
+
+    it('rejects malformed cookie JSON', async () => {
       const { context } = createMockContext({
         tenantSlug: 'tenant-a',
         signedCookies: { __session: 'not-json{{{' },
@@ -174,105 +226,29 @@ describe('AuthGuard — session isolation', () => {
     });
   });
 
-  describe('cross-session isolation', () => {
-    it('should isolate user identity between consecutive requests', async () => {
-      // Request 1: tenant-a
-      const { context: ctx1, req: req1 } = createMockContext({
-        authorization: 'Bearer token-a',
-        tenantSlug: 'tenant-a',
-      });
-      mockAuthService.validateApiToken.mockResolvedValueOnce({
-        email: 'admin@a.com',
-        tenantSlug: 'tenant-a',
-      });
-
-      const store1 = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1' };
-      await requestContextStore.run(store1, () => guard.canActivate(ctx1));
-
-      // Request 2: tenant-b
-      const { context: ctx2, req: req2 } = createMockContext({
-        authorization: 'Bearer token-b',
-        tenantSlug: 'tenant-b',
-      });
-      mockAuthService.validateApiToken.mockResolvedValueOnce({
-        email: 'admin@b.com',
-        tenantSlug: 'tenant-b',
-      });
-
-      const store2 = { user: null, tenantSlug: 'tenant-b', requestId: 'req-2' };
-      await requestContextStore.run(store2, () => guard.canActivate(ctx2));
-
-      // Verify complete isolation
-      expect(req1.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
-      expect(req2.user).toEqual({ email: 'admin@b.com', tenantSlug: 'tenant-b' });
-      expect(store1.user).toEqual({ email: 'admin@a.com', tenantSlug: 'tenant-a' });
-      expect(store2.user).toEqual({ email: 'admin@b.com', tenantSlug: 'tenant-b' });
+  describe('AUTH_PROVIDER=none', () => {
+    beforeEach(() => {
+      setAuthProvider('none');
     });
 
-    it('should not leak user from a failed request to a subsequent request', async () => {
-      // Request 1: fails auth
-      const { context: ctx1 } = createMockContext({
-        authorization: 'Bearer bad-token',
+    it('rejects protected-route auth even when credentials are present', async () => {
+      const { context } = createMockContext({
+        authorization: 'Bearer header.payload.signature',
         tenantSlug: 'tenant-a',
-      });
-      mockAuthService.validateApiToken.mockResolvedValueOnce(null);
-
-      await expect(guard.canActivate(ctx1)).rejects.toThrow(UnauthorizedException);
-
-      // Request 2: succeeds
-      const { context: ctx2, req: req2 } = createMockContext({
-        authorization: 'Bearer good-token',
-        tenantSlug: 'tenant-b',
-      });
-      mockAuthService.validateApiToken.mockResolvedValueOnce({
-        email: 'admin@b.com',
-        tenantSlug: 'tenant-b',
-      });
-
-      const store2 = { user: null, tenantSlug: 'tenant-b', requestId: 'req-2' };
-      await requestContextStore.run(store2, () => guard.canActivate(ctx2));
-
-      expect(req2.user).toEqual({ email: 'admin@b.com', tenantSlug: 'tenant-b' });
-      // No leaked tenant-a data
-      expect(store2.user).toEqual({ email: 'admin@b.com', tenantSlug: 'tenant-b' });
-    });
-
-    it('should not leak user between Bearer and cookie auth methods', async () => {
-      // Request 1: Bearer auth for tenant-a
-      const { context: ctx1, req: req1 } = createMockContext({
-        authorization: 'Bearer token-a',
-        tenantSlug: 'tenant-a',
-      });
-      mockAuthService.validateApiToken.mockResolvedValueOnce({
-        email: 'bearer@a.com',
-        tenantSlug: 'tenant-a',
-      });
-
-      const store1 = { user: null, tenantSlug: 'tenant-a', requestId: 'req-1' };
-      await requestContextStore.run(store1, () => guard.canActivate(ctx1));
-
-      // Request 2: Cookie auth for tenant-b
-      const { context: ctx2, req: req2 } = createMockContext({
-        tenantSlug: 'tenant-b',
         signedCookies: {
           __session: JSON.stringify({
-            email: 'cookie@b.com',
-            tenantSlug: 'tenant-b',
+            email: 'admin@a.com',
+            tenantSlug: 'tenant-a',
             sessionVersion: 'v1',
             iat: Date.now(),
           }),
         },
       });
-      mockAuthService.validateSession.mockResolvedValueOnce(true);
 
-      const store2 = { user: null, tenantSlug: 'tenant-b', requestId: 'req-2' };
-      await requestContextStore.run(store2, () => guard.canActivate(ctx2));
-
-      // Verify no leakage
-      expect(req1.user).toEqual({ email: 'bearer@a.com', tenantSlug: 'tenant-a' });
-      expect(req2.user).toEqual({ email: 'cookie@b.com', tenantSlug: 'tenant-b' });
-      expect(store1.user).toEqual({ email: 'bearer@a.com', tenantSlug: 'tenant-a' });
-      expect(store2.user).toEqual({ email: 'cookie@b.com', tenantSlug: 'tenant-b' });
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      expect(mockOidcJwtValidator.validate).not.toHaveBeenCalled();
+      expect(mockAuthService.validateApiToken).not.toHaveBeenCalled();
+      expect(mockAuthService.validateSession).not.toHaveBeenCalled();
     });
   });
 });

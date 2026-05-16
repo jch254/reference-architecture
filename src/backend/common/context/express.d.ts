@@ -1,4 +1,4 @@
-import { UserIdentity } from './identity.types';
+import { AuthPrincipal, UserIdentity } from './identity.types';
 
 declare global {
   namespace Express {
@@ -6,6 +6,7 @@ declare global {
       requestId: string;
       tenantSlug: string;
       user?: UserIdentity;
+      principal?: AuthPrincipal;
     }
   }
 }

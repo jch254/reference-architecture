@@ -88,6 +88,7 @@ This architecture follows the core ideas of the [Twelve-Factor App](https://12fa
 - `POST   /api/example`  
 - `PATCH  /api/example/:id`  
 - `DELETE /api/example/:id`  
+- `GET    /api/auth/check`
 
 ---
 
@@ -126,6 +127,46 @@ Subdomain mode preserves the original Reference Architecture pattern: `acme.your
 | `*.example.com` | `product-prod` | `subdomain` | `TENANT#acme`, `TENANT#demo`, `TENANT#jordan` |
 
 Existing DynamoDB keys remain tenant-aware in both modes: `PK = TENANT#<tenantId>`. Persisted tenant fields such as `tenantSlug` should remain on records that store them. Global app content can live under the configured tenant. Private future resources should still add `userId` scoping once auth/user ownership is added.
+
+### Authentication providers
+
+Backend authentication is provider-neutral in code, but each deployment chooses one primary provider with `AUTH_PROVIDER=none|internal_magic_link|oidc`. Dual-provider magic-link plus OIDC mode is intentionally not supported yet.
+
+| Env var | Required | Default | Notes |
+|---|---|---|---|
+| `AUTH_PROVIDER` | no | `internal_magic_link` | `none`, `internal_magic_link`, or `oidc` |
+| `OIDC_ISSUER` | when `AUTH_PROVIDER=oidc` | — | Auth0-compatible issuer, e.g. `https://example.auth0.com/` |
+| `OIDC_AUDIENCE` | when `AUTH_PROVIDER=oidc` | — | Expected API audience, e.g. `https://api.example.com` or `api://reference` |
+| `OIDC_JWKS_URI` | no | derived | Optional explicit JWKS URI, e.g. `https://example.auth0.com/.well-known/jwks.json` |
+
+Tenant resolution and auth provider selection are separate axes. For example, Handscape-style single-product apps should normally use `TENANT_RESOLUTION_MODE=fixed` with `AUTH_PROVIDER=oidc`. Namaste/Lush-style apps may use `AUTH_PROVIDER=internal_magic_link` with either tenant mode. Auth0-hosted passwordless, social, or passkey choices are external to this backend; the backend only validates OIDC JWTs.
+
+Protected backend routes use the global `AuthGuard`. Mark public endpoints with `@Public()`. Controllers can read the normalized principal with `@CurrentPrincipal()`, and services can use `AuthContext.getPrincipal()` or `AuthContext.requirePrincipal()`.
+
+The active provider normalizes into:
+
+```ts
+{
+  provider: 'internal_magic_link' | 'oidc',
+  subject: string,
+  email?: string,
+  name?: string,
+  picture?: string,
+}
+```
+
+`AUTH_PROVIDER=internal_magic_link` accepts the existing opaque magic-link API bearer tokens and signed session cookies. `AUTH_PROVIDER=oidc` accepts compact OIDC JWT bearer tokens only. `AUTH_PROVIDER=none` leaves protected routes closed unless the route is explicitly public.
+
+Authentication does not control tenancy. Tenant id still comes only from `TenantResolver` according to `TENANT_RESOLUTION_MODE`; JWT tenant, organization, or custom claims are ignored for tenant resolution. Auth0 Organizations are not used by default.
+
+Planned separate fixed-tenant demos:
+
+| Host | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
+|---|---|---|---|
+| `reference-architecture.603.nz` | `fixed` | `refarch-magic-demo` | `internal_magic_link` |
+| `reference-architecture-auth0.603.nz` | `fixed` | `refarch-auth0-demo` | `oidc` |
+
+The current Terraform root models one deployment at a time. Multi-demo deployment wiring is intentionally left for a later task.
 
 ---
 

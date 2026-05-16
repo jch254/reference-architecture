@@ -9,6 +9,7 @@ services:
       - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
       - DYNAMODB_TABLE=reference-architecture
       - TENANT_RESOLUTION_MODE=fixed
+      - AUTH_PROVIDER=internal_magic_link
       - APP_TENANT_ID=reference-architecture-local
       - AWS_REGION=us-east-1
     depends_on:

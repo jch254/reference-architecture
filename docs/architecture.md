@@ -26,6 +26,8 @@ Client → Cloudflare (TLS + proxy) → API Gateway (custom domain) → VPC Link
 - `/api/*` → NestJS controllers
 - `/*` → static files (Vite build output) with SPA fallback to `index.html`
 
+Tenant resolution and authentication are separate request concerns. `TenantMiddleware` resolves the runtime tenant first and stores it on the request context. `AuthGuard` then resolves an authenticated principal for protected routes. The auth principal is never used to choose the tenant.
+
 ## Tenant Resolution Modes
 
 Reference Architecture supports two tenant resolution modes through `TENANT_RESOLUTION_MODE`.
@@ -88,3 +90,82 @@ Global app content can live under the configured tenant. Private future resource
 - **Magic links** — issued and verified against the resolved tenant id. A test-environment link cannot be used against a prod deployment, and a subdomain tenant link cannot be used on another subdomain.
 - **Sessions** — the session cookie payload includes `tenantSlug`. `AuthGuard` rejects any session whose `tenantSlug` doesn't match the current request's tenant.
 - **API tokens** — stored under `TENANT#<tenantSlug>` and validated against the request tenant. Cross-tenant use returns `null`.
+- **OIDC/Auth0 JWTs** — validated by signature, issuer, audience, expiration, and `sub`. OIDC claims are mapped into a small `AuthPrincipal`; tenant/org/custom claims are ignored for tenancy.
+
+## Authentication Providers
+
+Reference Architecture supports multiple backend auth strategies in code, while each deployment chooses exactly one primary provider with `AUTH_PROVIDER=none|internal_magic_link|oidc`. Dual-provider magic-link plus OIDC mode is intentionally not supported yet; a future multi-provider mode would need explicit account-linking and precedence semantics.
+
+### Provider config
+
+| Env var | Required | Default | Notes |
+|---|---|---|---|
+| `AUTH_PROVIDER` | no | `internal_magic_link` | `none`, `internal_magic_link`, or `oidc` |
+| `OIDC_ISSUER` | when `AUTH_PROVIDER=oidc` | — | Auth0-compatible issuer, e.g. `https://example.auth0.com/` |
+| `OIDC_AUDIENCE` | when `AUTH_PROVIDER=oidc` | — | Expected API audience, e.g. `https://api.example.com` or `api://reference` |
+| `OIDC_JWKS_URI` | no | derived | Optional explicit JWKS URI, e.g. `https://example.auth0.com/.well-known/jwks.json` |
+
+`AUTH_PROVIDER=none` and `AUTH_PROVIDER=internal_magic_link` do not require OIDC settings. `AUTH_PROVIDER=oidc` requires `OIDC_ISSUER` and `OIDC_AUDIENCE`; if `OIDC_JWKS_URI` is omitted, the backend derives `/.well-known/jwks.json` from the issuer. Legacy `MAGIC_LINK_AUTH_ENABLED` and `OIDC_AUTH_ENABLED` flags are ignored in favor of `AUTH_PROVIDER`.
+
+Tenant resolution and auth provider selection are separate axes:
+
+```bash
+TENANT_RESOLUTION_MODE=fixed
+AUTH_PROVIDER=oidc
+```
+
+```bash
+TENANT_RESOLUTION_MODE=subdomain
+AUTH_PROVIDER=internal_magic_link
+```
+
+Handscape-style single-product apps should normally use `TENANT_RESOLUTION_MODE=fixed` and `AUTH_PROVIDER=oidc`. Namaste/Lush-style apps may use `AUTH_PROVIDER=internal_magic_link`. Auth0-hosted passwordless, social, or passkey choices are external to this backend; the backend only validates OIDC access tokens.
+
+### Principal shape
+
+Valid auth from either provider is normalized into `AuthPrincipal`:
+
+```ts
+{
+	provider: 'internal_magic_link' | 'oidc',
+	subject: string,
+	email?: string,
+	name?: string,
+	picture?: string,
+}
+```
+
+For OIDC, `subject` comes from JWT `sub`. For magic-link/session/API-token auth, `subject` is the normalized email used by the existing flow. Auth0 SDK types and provider-specific claim bags are not exposed to domain services.
+
+### Protected and public routes
+
+`AuthGuard` is registered globally. Routes are protected unless marked with `@Public()`.
+
+- Public routes include `GET /api/health`, `GET /api/example`, `POST /api/auth/request-link`, and `GET /api/auth/verify`.
+- Protected routes can read the principal with `@CurrentPrincipal()` in controllers.
+- Services can read the request principal through `AuthContext.getPrincipal()` or require one with `AuthContext.requirePrincipal()`.
+- `GET /api/auth/check` is the minimal protected auth-check endpoint for validating the route pattern; it is not a user profile endpoint and does not persist users.
+
+`AUTH_PROVIDER=internal_magic_link` accepts existing opaque magic-link API bearer tokens and signed session cookies. Compact OIDC JWTs are rejected in this mode. `AUTH_PROVIDER=oidc` accepts valid OIDC JWT bearer tokens and rejects magic-link bearer tokens or session cookies. `AUTH_PROVIDER=none` does not create authenticated principals for protected routes.
+
+### Tenant separation
+
+Authentication must not control tenancy:
+
+- Tenant comes only from `TenantResolver` and `TENANT_RESOLUTION_MODE`.
+- Fixed mode continues to ignore `Host` and uses `APP_TENANT_ID`.
+- Subdomain mode continues to derive tenant from `Host`.
+- JWT tenant, organization, or custom claims are ignored for tenant resolution.
+- Auth0 Organizations are not used by default.
+- No workspace, organization routing, RBAC, or user persistence is part of the reference backend auth layer.
+
+### Two-demo direction
+
+The intended public demos are two separate fixed-tenant deployments rather than one mixed-provider deployment:
+
+| Host | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
+|---|---|---|---|
+| `reference-architecture.603.nz` | `fixed` | `refarch-magic-demo` | `internal_magic_link` |
+| `reference-architecture-auth0.603.nz` | `fixed` | `refarch-auth0-demo` | `oidc` |
+
+The current Terraform root creates one deployment at a time. Wiring both demos as separate deployments is a later infrastructure task.

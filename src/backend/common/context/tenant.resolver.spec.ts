@@ -75,6 +75,24 @@ describe('TenantResolver', () => {
     ).toBe('handscape-prod');
   });
 
+  it('ignores auth headers and token claims in fixed mode', () => {
+    const resolver = loadResolver({
+      mode: 'fixed',
+      appTenantId: 'handscape-prod',
+      baseDomain: 'handscape.health',
+    });
+
+    expect(
+      resolver.resolveTenantId({
+        hostname: 'attacker.handscape.health',
+        headers: {
+          host: 'attacker.handscape.health',
+          authorization: 'Bearer jwt.with.tenant_claim',
+        },
+      }),
+    ).toBe('handscape-prod');
+  });
+
   it('derives tenant from Host in subdomain mode', () => {
     const resolver = loadResolver({
       mode: 'subdomain',
@@ -85,6 +103,23 @@ describe('TenantResolver', () => {
       resolver.resolveTenantId({
         hostname: 'acme.example.com',
         headers: { host: 'acme.example.com' },
+      }),
+    ).toBe('acme');
+  });
+
+  it('derives tenant only from Host in subdomain mode', () => {
+    const resolver = loadResolver({
+      mode: 'subdomain',
+      baseDomain: 'example.com',
+    });
+
+    expect(
+      resolver.resolveTenantId({
+        hostname: 'acme.example.com',
+        headers: {
+          host: 'acme.example.com',
+          authorization: 'Bearer jwt.with.other_tenant_claim',
+        },
       }),
     ).toBe('acme');
   });

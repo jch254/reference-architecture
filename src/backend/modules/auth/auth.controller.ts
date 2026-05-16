@@ -5,7 +5,9 @@ import { Request, Response } from 'express';
 
 import { config } from '../../common/config';
 import { AuthService } from './auth.service';
+import { CurrentPrincipal } from './current-principal.decorator';
 import { Public } from './auth.guard';
+import { AuthPrincipal } from '../../common/context/identity.types';
 
 // Per-email rate limiter (complements per-IP throttling from @nestjs/throttler)
 const emailRateMap = new Map<string, { count: number; resetAt: number }>();
@@ -172,9 +174,14 @@ export class AuthController {
     res.json({ message: 'Logged out' });
   }
 
+  @Get('check')
+  check(@CurrentPrincipal() principal: AuthPrincipal): { authenticated: true; principal: AuthPrincipal } {
+    return { authenticated: true, principal };
+  }
+
   @Get('session')
   async session(@Req() req: Request): Promise<{ email: string; tenantSlug: string }> {
-    if (!req.user) {
+    if (!req.user || req.principal?.provider !== 'internal_magic_link') {
       throw new UnauthorizedException();
     }
     return { email: req.user.email, tenantSlug: req.user.tenantSlug };

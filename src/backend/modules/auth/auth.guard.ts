@@ -2,9 +2,11 @@ import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedExc
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 
-import { SessionClaims } from '../../common/context/identity.types';
+import { config } from '../../common/config';
+import { AuthPrincipal, SessionClaims, UserIdentity } from '../../common/context/identity.types';
 import { requestContextStore } from '../../common/context/request-context.store';
 import { AuthService } from './auth.service';
+import { OidcJwtValidator } from './oidc-jwt.validator';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
@@ -14,6 +16,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly authService: AuthService,
+    private readonly oidcJwtValidator: OidcJwtValidator,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -25,16 +28,48 @@ export class AuthGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest<Request>();
 
-    // Try Bearer token first
+    switch (config.authProvider) {
+      case 'none':
+        throw new UnauthorizedException();
+      case 'oidc':
+        return this.authenticateOidc(req);
+      case 'internal_magic_link':
+        return this.authenticateInternalMagicLink(req);
+    }
+  }
+
+  private async authenticateOidc(req: Request): Promise<boolean> {
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const rawToken = authHeader.slice(7);
+    if (!authHeader) {
+      throw new UnauthorizedException();
+    }
+
+    const rawToken = this.parseBearerToken(authHeader);
+    if (!this.isJwt(rawToken)) {
+      throw new UnauthorizedException();
+    }
+
+    const principal = await this.oidcJwtValidator.validate(rawToken);
+    this.attachPrincipal(req, principal);
+    return true;
+  }
+
+  private async authenticateInternalMagicLink(req: Request): Promise<boolean> {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const rawToken = this.parseBearerToken(authHeader);
+      if (this.isJwt(rawToken)) {
+        throw new UnauthorizedException();
+      }
+
       const identity = await this.authService.validateApiToken(rawToken, req.tenantSlug);
       if (!identity) throw new UnauthorizedException();
 
-      req.user = identity;
-      const store = requestContextStore.getStore();
-      if (store) store.user = identity;
+      this.attachPrincipal(
+        req,
+        this.authService.toMagicLinkPrincipal(identity.email),
+        identity,
+      );
       return true;
     }
 
@@ -56,11 +91,44 @@ export class AuthGuard implements CanActivate {
     if (!valid) throw new UnauthorizedException();
 
     const user = { email: payload.email, tenantSlug: payload.tenantSlug };
-    req.user = user;
-
-    const store = requestContextStore.getStore();
-    if (store) store.user = user;
+    this.attachPrincipal(
+      req,
+      this.authService.toMagicLinkPrincipal(payload.email),
+      user,
+    );
 
     return true;
+  }
+
+  private parseBearerToken(authHeader: string): string {
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException();
+    }
+
+    const rawToken = authHeader.slice('Bearer '.length);
+    if (!rawToken || rawToken.trim() !== rawToken || /\s/.test(rawToken)) {
+      throw new UnauthorizedException();
+    }
+
+    return rawToken;
+  }
+
+  private isJwt(rawToken: string): boolean {
+    return rawToken.split('.').length === 3;
+  }
+
+  private attachPrincipal(
+    req: Request,
+    principal: AuthPrincipal,
+    user?: UserIdentity,
+  ): void {
+    req.principal = principal;
+    if (user) req.user = user;
+
+    const store = requestContextStore.getStore();
+    if (!store) return;
+
+    store.principal = principal;
+    store.user = user ?? null;
   }
 }
