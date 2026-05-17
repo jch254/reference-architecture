@@ -11,7 +11,7 @@ Two deployment layers, applied sequentially via CodeBuild.
 
 ## Flow
 
-CodeBuild builds and pushes the Docker image, then applies the AWS Terraform layer. Once ECS stabilises, it applies the Cloudflare layer.
+CodeBuild builds and pushes the Docker image, then applies the AWS Terraform layer. Once ECS stabilises, it applies the Cloudflare layer. This flow runs once per deployment identity; the magic-link demo and Auth0 demo use separate CodeBuild projects with separate Terraform state keys and var files.
 
 ## Layer relationship
 
@@ -44,3 +44,5 @@ The Auth0 demo is a separate deployment identity, not a rename of the existing d
 - `reference-architecture-auth0.603.nz` uses `TENANT_RESOLUTION_MODE=fixed`, `APP_TENANT_ID=refarch-auth0-demo`, and `AUTH_PROVIDER=oidc`.
 
 Before applying the Auth0 deployment, replace the placeholder `oidc_issuer` and `oidc_audience` values in `terraform/environments/prod-auth0/terraform.tfvars` or override them with `-var` / `TF_VAR_*` values. Do not commit Auth0 secrets. The current backend-only OIDC demo does not need a frontend callback URL, but the Auth0 API audience and issuer must match the access tokens used to call `/api/auth/check`.
+
+The first Auth0 deployment needs the staged ACM/DNS bootstrap described in [terraform/README.md](terraform/README.md). In short: create the ACM certificate, create Cloudflare validation records, wait for the certificate to issue, then run the full AWS and Cloudflare applies. After that, the Auth0 CodeBuild project can handle future pushes like the existing demo.

@@ -11,7 +11,7 @@ Minimal, production-ready backend architecture.
 **Live demos:**
 
 - [reference-architecture.603.nz](https://reference-architecture.603.nz)
-- [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC deployment config
+- [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC backend demo
 
 ---
 
@@ -171,7 +171,15 @@ Current deployment matrix:
 
 The Terraform root still models one deployment identity at a time. The Auth0 demo is a second state/var-file deployment using the same modules and app code, so `reference-architecture.603.nz` keeps its existing resource names and state while `reference-architecture-auth0.603.nz` gets its own ECS service, task definition, API custom domain, certificate, CodeBuild project, SSM placeholders, and DynamoDB table named from `reference-architecture-auth0`.
 
-The Auth0 demo is backend-only for now. The frontend does not include an Auth0 login/logout flow yet, so post-deploy magic-link validation is disabled for that deployment. To verify OIDC auth manually, fetch a real Auth0 access token for the configured API audience and call:
+The Auth0 demo is backend-only for now. The frontend does not include an Auth0 login/logout flow yet, so post-deploy magic-link validation is disabled for that deployment. Public routing can be checked with:
+
+```bash
+curl https://reference-architecture-auth0.603.nz/api/health
+```
+
+Expected success returns `{"data":{"status":"ok"}}`.
+
+To verify OIDC auth manually, fetch a real Auth0 access token for the configured API audience and call:
 
 ```bash
 curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
@@ -179,6 +187,8 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
 ```
 
 Expected success returns `authenticated: true` with an OIDC principal. Magic-link bearer tokens and session cookies should be rejected by this deployment.
+
+The two public demos use the same `buildspec.yml`, but not the same build execution. After the Auth0 deployment is bootstrapped, pushes to `main` can trigger two independent CodeBuild projects: one with `TF_VAR_FILE=environments/prod/terraform.tfvars` and one with `TF_VAR_FILE=environments/prod-auth0/terraform.tfvars`.
 
 Manual Auth0 dashboard setup for `reference-architecture-auth0.603.nz`:
 

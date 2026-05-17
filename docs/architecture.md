@@ -6,7 +6,7 @@
 - **Frontend** (`/src/frontend`) — React + Vite demo UI. Single-page app served from the same container. Interacts with API via same-origin fetch.
 - **Mobile** (`/src/mobile`) — React Native client. Consumes the same API. Shares API types via `/src/shared`.
 - **Runtime** (`Dockerfile`) — Node.js container. Single process serves both API and frontend.
-- **CI/CD** (`buildspec.yml`) — CodeBuild. Build → Docker push → Terraform apply → Cloudflare DNS → system validation.
+- **CI/CD** (`buildspec.yml`) — CodeBuild. Build → Docker push → Terraform apply → Cloudflare DNS → system validation where enabled. Each deployment identity runs its own CodeBuild project with its own Terraform state key and var file.
 - **Infrastructure** (`/infrastructure/terraform`) — ECS Fargate behind API Gateway HTTP API with custom domain. DynamoDB table (PAY_PER_REQUEST). Cloudflare for DNS + edge proxy. Reusable primitives are composed from `jch254/terraform-modules`; app-specific configuration remains local.
 
 ## Design decisions
@@ -170,7 +170,13 @@ The public demos are separate deployment identities rather than one mixed-provid
 
 The Auth0 deployment uses its own DynamoDB table, derived from `name = "reference-architecture-auth0"`, while preserving the logical tenant key `PK = TENANT#refarch-auth0-demo`. It does not select tables dynamically from request tenants.
 
-The Auth0 demo is backend-only until a frontend Auth0 login flow is added. Verify it with a real Auth0 access token for the configured audience:
+The Auth0 demo is backend-only until a frontend Auth0 login flow is added. Public routing should return the standard health response:
+
+```bash
+curl https://reference-architecture-auth0.603.nz/api/health
+```
+
+Verify OIDC with a real Auth0 access token for the configured audience:
 
 ```bash
 curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
@@ -178,3 +184,5 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
 ```
 
 Auth0 dashboard setup is manual: configure an API audience matching `OIDC_AUDIENCE`, use the Auth0 tenant issuer as `OIDC_ISSUER`, and only add callback/logout/origin URLs when a browser login flow is introduced. For that future flow, use `https://reference-architecture-auth0.603.nz` as the origin/logout base.
+
+The public demos share app code and `buildspec.yml`, but deploy as separate CodeBuild runs. Future pushes to `main` can run both deployment identities in parallel once both CodeBuild webhooks exist.

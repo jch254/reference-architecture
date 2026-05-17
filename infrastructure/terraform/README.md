@@ -52,7 +52,7 @@ Public subnets only. ECS tasks get public IPs. VPC Link security group restricts
 
 ## Bootstrap
 
-ACM certificate requires DNS validation via Cloudflare, but Cloudflare depends on AWS outputs. First deploy requires targeted applies:
+ACM certificate requires DNS validation via Cloudflare, but Cloudflare depends on AWS outputs. First deploy requires staged applies:
 
 1. Apply the ACM certificate in the AWS layer:
    `terraform apply -target=module.acm_certificate.aws_acm_certificate.main`
@@ -119,7 +119,7 @@ terraform apply \
   -var="aws_state_key=${TF_STATE_KEY}"
 ```
 
-The first full AWS apply creates the Auth0 CodeBuild project and webhook. If the selected image tag is not present in the new Auth0 ECR repo yet, the ECS service can be unhealthy until the first Auth0 CodeBuild run builds and pushes that commit's image.
+The first full AWS apply creates the Auth0 CodeBuild project and webhook. If the selected image tag is not present in the new Auth0 ECR repo yet, the ECS service can be unhealthy until the first Auth0 CodeBuild run builds and pushes that commit's image. Once DNS and runtime are healthy, `https://reference-architecture-auth0.603.nz/api/health` should return `{"data":{"status":"ok"}}`.
 
 ## Pipeline flow
 
