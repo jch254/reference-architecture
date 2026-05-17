@@ -187,7 +187,7 @@ Persisted tenant fields such as `tenantSlug` should remain on records that store
 | `terraform_state_key` | Remote state key used by CodeBuild for this deployment identity | no | `name` |
 | `terraform_var_file` | Terraform variable file CodeBuild uses for subsequent applies | no | `"environments/prod/terraform.tfvars"` |
 | `validation_base_url` | Base URL for post-deploy system validation | no | `https://dns_name` |
-| `run_system_validation` | Whether CodeBuild runs the magic-link system validation after deploy | no | `true` |
+| `run_system_validation` | Whether CodeBuild runs system validation after deploy | no | `true` |
 | `cloudflare_api_token_ssm_parameter_name` | SSM parameter containing the Cloudflare API token for the DNS deploy step | no | `"/reference-architecture/cloudflare-api-token"` |
 | `container_cpu` | Fargate task CPU units | no | `256` |
 | `container_memory` | Fargate task memory (MB) | no | `512` |

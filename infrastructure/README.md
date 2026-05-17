@@ -45,4 +45,15 @@ The Auth0 demo is a separate deployment identity, not a rename of the existing d
 
 Before applying the Auth0 deployment, replace the placeholder `oidc_issuer` and `oidc_audience` values in `terraform/environments/prod-auth0/terraform.tfvars` or override them with `-var` / `TF_VAR_*` values. Do not commit Auth0 secrets. The current backend-only OIDC demo does not need a frontend callback URL, but the Auth0 API audience and issuer must match the access tokens used to call `/api/auth/check`.
 
+Manual OIDC smoke validation uses a bearer token obtained outside the repo, for example from an Auth0 M2M `client_credentials` flow:
+
+```bash
+BASE_URL=https://reference-architecture-auth0.603.nz \
+VALIDATION_AUTH_PROVIDER=oidc \
+AUTH_BEARER_TOKEN="$AUTH0_ACCESS_TOKEN" \
+pnpm run validate
+```
+
+For OIDC deployments, the validator also checks that `/api/auth/check` returns `401` without a token. If `AUTH_BEARER_TOKEN` is missing, the authenticated check is skipped unless `VALIDATION_REQUIRE_AUTH=true` is set. CodeBuild validation for the Auth0 deployment remains disabled until a secure token injection path is configured.
+
 The first Auth0 deployment needs the staged ACM/DNS bootstrap described in [terraform/README.md](terraform/README.md). In short: create the ACM certificate, create Cloudflare validation records, wait for the certificate to issue, then run the full AWS and Cloudflare applies. After that, the Auth0 CodeBuild project can handle future pushes like the existing demo.

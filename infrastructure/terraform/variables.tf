@@ -155,7 +155,7 @@ variable "validation_base_url" {
 }
 
 variable "run_system_validation" {
-  description = "Whether CodeBuild runs the magic-link system validation after deployment. Disable for backend-only OIDC demos until a token-supplying validation exists."
+  description = "Whether CodeBuild runs system validation after deployment. OIDC validation can run in partial mode without a bearer token, but full auth validation requires AUTH_BEARER_TOKEN."
   type        = bool
   default     = true
 }

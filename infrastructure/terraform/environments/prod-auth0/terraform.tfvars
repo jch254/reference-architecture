@@ -26,7 +26,7 @@ dns_name             = "reference-architecture-auth0.603.nz"
 
 resend_from_email = "noreply@mail.603.nz"
 
-# The existing system validation exercises the internal magic-link flow. The
-# Auth0 demo is backend-only for now; validate /api/auth/check manually with a
-# real Auth0 access token until frontend Auth0 login exists.
+# Keep automated validation disabled until CodeBuild has a secure way to inject
+# AUTH_BEARER_TOKEN. Manual OIDC smoke validation is supported with a supplied
+# Auth0 access token.
 run_system_validation = false

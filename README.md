@@ -171,7 +171,7 @@ Current deployment matrix:
 
 The Terraform root still models one deployment identity at a time. The Auth0 demo is a second state/var-file deployment using the same modules and app code, so `reference-architecture.603.nz` keeps its existing resource names and state while `reference-architecture-auth0.603.nz` gets its own ECS service, task definition, API custom domain, certificate, CodeBuild project, SSM placeholders, and DynamoDB table named from `reference-architecture-auth0`.
 
-The Auth0 demo is backend-only for now. The frontend does not include an Auth0 login/logout flow yet, so post-deploy magic-link validation is disabled for that deployment. Public routing can be checked with:
+The Auth0 demo is backend-only for now. The frontend does not include an Auth0 login/logout flow yet, so CodeBuild validation is disabled for that deployment until a secure bearer-token injection path is configured. Public routing can be checked with:
 
 ```bash
 curl https://reference-architecture-auth0.603.nz/api/health
@@ -187,6 +187,17 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
 ```
 
 Expected success returns `authenticated: true` with an OIDC principal. Magic-link bearer tokens and session cookies should be rejected by this deployment.
+
+The automated smoke validator can run the same OIDC check when a bearer token is supplied:
+
+```bash
+BASE_URL=https://reference-architecture-auth0.603.nz \
+VALIDATION_AUTH_PROVIDER=oidc \
+AUTH_BEARER_TOKEN="$AUTH0_ACCESS_TOKEN" \
+pnpm run validate
+```
+
+`GET /api/auth/check` without a bearer token should return `401` for `AUTH_PROVIDER=oidc`, and the validator checks that negative case. If `AUTH_BEARER_TOKEN` is omitted, OIDC validation runs as a partial smoke check and skips the authenticated request; set `VALIDATION_REQUIRE_AUTH=true` to fail instead. Token acquisition happens outside the validation script, for example with an Auth0 M2M `client_credentials` flow. Do not commit Auth0 client secrets or bearer tokens.
 
 The two public demos use the same `buildspec.yml`, but not the same build execution. After the Auth0 deployment is bootstrapped, pushes to `main` can trigger two independent CodeBuild projects: one with `TF_VAR_FILE=environments/prod/terraform.tfvars` and one with `TF_VAR_FILE=environments/prod-auth0/terraform.tfvars`.
 

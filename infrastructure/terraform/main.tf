@@ -271,6 +271,7 @@ module "codebuild_project" {
     { name = "TF_STATE_KEY", value = local.terraform_state_key },
     { name = "TF_VAR_FILE", value = var.terraform_var_file },
     { name = "VALIDATION_BASE_URL", value = local.validation_base_url },
+    { name = "VALIDATION_AUTH_PROVIDER", value = var.auth_provider },
     { name = "RUN_SYSTEM_VALIDATION", value = tostring(var.run_system_validation) },
   ]
 }

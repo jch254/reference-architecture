@@ -170,7 +170,7 @@ The public demos are separate deployment identities rather than one mixed-provid
 
 The Auth0 deployment uses its own DynamoDB table, derived from `name = "reference-architecture-auth0"`, while preserving the logical tenant key `PK = TENANT#refarch-auth0-demo`. It does not select tables dynamically from request tenants.
 
-The Auth0 demo is backend-only until a frontend Auth0 login flow is added. Public routing should return the standard health response:
+The Auth0 demo is backend-only until a frontend Auth0 login flow is added. CodeBuild validation stays disabled for this deployment until a secure `AUTH_BEARER_TOKEN` injection path is configured. Public routing should return the standard health response:
 
 ```bash
 curl https://reference-architecture-auth0.603.nz/api/health
@@ -182,6 +182,17 @@ Verify OIDC with a real Auth0 access token for the configured audience:
 curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
   https://reference-architecture-auth0.603.nz/api/auth/check
 ```
+
+The system validator can perform the same OIDC smoke check with a supplied token:
+
+```bash
+BASE_URL=https://reference-architecture-auth0.603.nz \
+VALIDATION_AUTH_PROVIDER=oidc \
+AUTH_BEARER_TOKEN="$AUTH0_ACCESS_TOKEN" \
+pnpm run validate
+```
+
+For `VALIDATION_AUTH_PROVIDER=oidc`, validation checks `/api/health`, checks that `/api/auth/check` returns `401` without a bearer token, and checks `authenticated: true` plus `principal.provider: "oidc"` when `AUTH_BEARER_TOKEN` is present. Without a token it prints a partial-validation skip unless `VALIDATION_REQUIRE_AUTH=true` is set. The validator does not fetch Auth0 tokens or manage client credentials; obtain tokens outside the script and keep secrets out of source control and logs.
 
 Auth0 dashboard setup is manual: configure an API audience matching `OIDC_AUDIENCE`, use the Auth0 tenant issuer as `OIDC_ISSUER`, and only add callback/logout/origin URLs when a browser login flow is introduced. For that future flow, use `https://reference-architecture-auth0.603.nz` as the origin/logout base.
 
