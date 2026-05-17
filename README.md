@@ -302,6 +302,8 @@ SPA application (frontend browser login):
   - Allowed Origins (CORS), if prompted: `https://reference-architecture-auth0.603.nz`
 - For local development against an OIDC backend, also add `http://localhost:3000` (and `http://localhost:5173` if using the Vite dev server) to the same URL lists.
 
+For the full end-to-end sequence to stand up an Auth0/OIDC deployment — Auth0 dashboard, new deployment identity, staged ACM/DNS bootstrap, runtime SSM secrets (including the always-required `cookie-secret`), first build, and verification — follow the [Provisioning a new Auth0/OIDC deployment](infrastructure/README.md#provisioning-a-new-auth0oidc-deployment) runbook. Apps scaffolded off this repo should follow that runbook end to end; it is written generically (`<app>`/`<host>`/`<zone>`), not just for the demo.
+
 ---
 
 ## Running locally

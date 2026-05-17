@@ -18,7 +18,7 @@ oidc_audience = "https://reference-architecture-auth0.603.nz/api"
 # applying. This must be the Auth0 SPA application, not the M2M client used for
 # backend curl testing. Leave commented/unset to deploy the backend without the
 # frontend login flow enabled.
-# auth0_spa_client_id = "REPLACE_WITH_AUTH0_SPA_CLIENT_ID"
+auth0_spa_client_id = "EWJPdKHf6NkzKy8NS0Z6GG5DReH55j3c"
 
 vpc_id = "vpc-0844e8018ce450134"
 

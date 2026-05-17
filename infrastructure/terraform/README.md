@@ -173,6 +173,7 @@ Persisted tenant fields such as `tenantSlug` should remain on records that store
 | `oidc_issuer` | OIDC issuer URL, for example `https://example.auth0.com/`; required by the backend when `auth_provider = "oidc"` | no | `null` |
 | `oidc_audience` | Expected OIDC access-token audience; required by the backend when `auth_provider = "oidc"` | no | `null` |
 | `oidc_jwks_uri` | Optional explicit JWKS URI; if omitted, the backend derives it from `oidc_issuer` | no | `null` |
+| `auth0_spa_client_id` | Public Auth0 SPA application client id, surfaced to the browser via `GET /api/config` for the frontend Auth0 login flow when `auth_provider = "oidc"`; public value, safe to commit, never the M2M client id or any client secret; leave `null` to deploy the OIDC backend without the frontend login UI | no | `null` |
 | `vpc_id` | ID of existing VPC to use | yes | — |
 | `image_tag` | Docker image tag to deploy | no | `"latest"` |
 | `build_docker_image` | Docker image to use as CodeBuild build environment | yes | — |
