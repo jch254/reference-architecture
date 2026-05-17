@@ -88,6 +88,7 @@ This architecture follows the core ideas of the [Twelve-Factor App](https://12fa
 
 - `GET    /api/health`  
 - `GET    /api/example`  
+- `GET    /api/example/:id`
 - `POST   /api/example`  
 - `PATCH  /api/example/:id`  
 - `DELETE /api/example/:id`  
@@ -173,6 +174,27 @@ PK = TENANT#<tenantId>   SK = USER_IDENTITY#<provider>#<sha256(providerSubject)>
 ```
 
 The identity lookup item makes `/api/me` deterministic without scanning a tenant. Handscape-style products should use `/api/me` as the starting point for user-owned data, then store future resources under the resolved tenant and local `userId`.
+
+### User-owned example resources
+
+The example CRUD resource demonstrates the canonical pattern for authenticated, user-owned domain data. `GET/POST/PATCH/DELETE /api/example` routes are protected; `GET /api/health` stays public, `/api/auth/check` remains principal-only, and `/api/me` remains the local-user lookup/creation endpoint.
+
+Example records are owned by the resolved tenant plus the local `User.userId`. Clients can send only domain fields such as `name`; the server ignores client-supplied `tenantId` or `userId` and attaches both owner fields itself:
+
+1. `TenantResolver` stores `tenantId` in request context.
+2. `AuthGuard` stores the normalized `AuthPrincipal`.
+3. `ExampleService` calls `UsersService.findOrCreateFromPrincipal(tenantId, principal)`.
+4. The example item is written under that local `userId`, not the raw provider subject.
+
+The DynamoDB access pattern keeps tenant partitioning and scopes list queries to the current user:
+
+```text
+PK = TENANT#<tenantId>   SK = USER#<userId>#EXAMPLE#<exampleId>
+```
+
+Listing uses `PK = TENANT#<tenantId>` plus `begins_with(SK, USER#<userId>#EXAMPLE#)`, so it does not scan all tenant examples. Read, update, and delete build the same key from the authenticated local user, so another user in the same tenant receives `404` for someone else's example. The same external provider subject in another tenant maps to a different local user and cannot access the first tenant's data.
+
+This is the same pattern Handscape-style apps should use for saved protocols, favourites, notes, and history: tenant id comes from the deployment/request, ownership comes from the local user model, and email/provider subject remain identity inputs rather than domain owner ids.
 
 Current deployment matrix:
 

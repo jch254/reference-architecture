@@ -10,8 +10,16 @@ import {
   Post,
 } from '@nestjs/common';
 
+import { AuthPrincipal } from '../../common/context/identity.types';
 import { Public } from '../auth/auth.guard';
+import { CurrentPrincipal } from '../auth/current-principal.decorator';
 import { ExampleService } from './example.service';
+
+interface ExampleBody {
+  name: string;
+  tenantId?: string;
+  userId?: string;
+}
 
 @Controller()
 export class ExampleController {
@@ -25,29 +33,46 @@ export class ExampleController {
 
   @Post('example')
   async createExample(
-    @Body() body: { name: string },
+    @Body() body: ExampleBody,
+    @CurrentPrincipal() principal: AuthPrincipal,
   ) {
     if (!body.name) throw new BadRequestException('name is required');
 
-    const example = await this.exampleService.createExample(body.name);
+    const example = await this.exampleService.createExample(
+      principal,
+      body.name,
+    );
     return example;
   }
 
-  @Public()
   @Get('example')
-  async listExamples() {
-    const examples = await this.exampleService.listExamples();
+  async listExamples(
+    @CurrentPrincipal() principal: AuthPrincipal,
+  ) {
+    const examples = await this.exampleService.listExamples(principal);
     return examples;
+  }
+
+  @Get('example/:id')
+  async getExample(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: AuthPrincipal,
+  ) {
+    const example = await this.exampleService.getExample(principal, id);
+    if (!example) throw new NotFoundException('Example not found');
+    return example;
   }
 
   @Patch('example/:id')
   async updateExample(
     @Param('id') id: string,
-    @Body() body: { name: string },
+    @Body() body: ExampleBody,
+    @CurrentPrincipal() principal: AuthPrincipal,
   ) {
     if (!body.name) throw new BadRequestException('name is required');
 
     const example = await this.exampleService.updateExample(
+      principal,
       id,
       body.name,
     );
@@ -56,8 +81,12 @@ export class ExampleController {
   }
 
   @Delete('example/:id')
-  async deleteExample(@Param('id') id: string) {
-    await this.exampleService.deleteExample(id);
+  async deleteExample(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: AuthPrincipal,
+  ) {
+    const deleted = await this.exampleService.deleteExample(principal, id);
+    if (!deleted) throw new NotFoundException('Example not found');
     return { id };
   }
 }

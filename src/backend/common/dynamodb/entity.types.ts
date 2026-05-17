@@ -37,6 +37,11 @@ export const Keys = {
     SK: `USER_IDENTITY#${provider}#${subjectHash}`,
   }),
 
+  userExample: (tenantId: string, userId: string, exampleId: string) => ({
+    PK: `TENANT#${tenantId}`,
+    SK: `USER#${userId}#EXAMPLE#${exampleId}`,
+  }),
+
   tenantAdmin: (tenantId: string) => ({
     PK: `TENANT#${tenantId}`,
     SK: 'TENANT_ADMIN',

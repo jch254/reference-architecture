@@ -13,7 +13,7 @@
 
 - **Stateless** — no session state, no local disk. Horizontally scalable by default.
 - **Tenant-aware** — configurable tenant resolution via middleware. Tenant ID embedded in every DynamoDB partition key — logical isolation enforced at the data layer. See [Tenant resolution modes](#tenant-resolution-modes) below.
-- **Single-table DynamoDB** — all entities in one table. `PK = TENANT#<tenantId>`, `SK = <ENTITY_TYPE>#<entityId>`. No GSIs. No scans.
+- **Single-table DynamoDB** — all entities in one table. Tenant-owned entities use `PK = TENANT#<tenantId>`, `SK = <ENTITY_TYPE>#<entityId>`; user-owned entities add the local user id to the sort key. No GSIs. No scans.
 - **Analytics** — append-only event tracking. Writes to same DynamoDB table (`PK = TENANT#<tenantId>`, `SK = EVENT#<ts>#<name>#<reqId>`). Resolves context via AsyncLocalStorage — callsites pass only event name. Non-blocking (failures logged, never thrown).
 - **Single container** — no ALB, no NAT gateway, no background workers. One container serves API (`/api/*`) and frontend (`/*`).
 - **Deterministic** — infrastructure fully described in Terraform. AWS and Cloudflare are separate Terraform roots, with Cloudflare reading AWS outputs through remote state. No manual steps after initial bootstrap.
@@ -85,6 +85,16 @@ Persisted tenant fields such as `tenantSlug` should remain on records that store
 
 Global app content can live under the configured tenant. Private resources should scope ownership from the local user returned by `GET /api/me`.
 
+For authenticated user-owned resources, keep the same tenant partition and include the local user id in the sort key:
+
+```
+PK = TENANT#<tenantId>   SK = USER#<userId>#EXAMPLE#<exampleId>
+```
+
+The example CRUD resource uses this pattern. Listing examples queries the tenant partition with `begins_with(SK, USER#<userId>#EXAMPLE#)`, so it returns only the authenticated user's items without scanning every example in the tenant. Read, update, and delete construct the same key from the authenticated local user; another user in the same tenant, or the same provider subject in another tenant, receives `404` for data they do not own.
+
+Clients do not choose `tenantId` or `userId`. `tenantId` comes from `TenantResolver`; `userId` comes from `UsersService.findOrCreateFromPrincipal()` using the current tenant and `AuthPrincipal`. Domain records should store the local `userId`, not the raw OIDC subject, magic-link email, or any other provider-specific identity. This is the reference pattern for Handscape-style saved protocols, favourites, notes, and history.
+
 ### Auth isolation
 
 - **Magic links** — issued and verified against the resolved tenant id. A test-environment link cannot be used against a prod deployment, and a subdomain tenant link cannot be used on another subdomain.
@@ -152,11 +162,12 @@ The `USER_IDENTITY` lookup item is deterministic, so `/api/me` can find the loca
 
 `AuthGuard` is registered globally. Routes are protected unless marked with `@Public()`.
 
-- Public routes include `GET /api/health`, `GET /api/example`, `POST /api/auth/request-link`, and `GET /api/auth/verify`.
+- Public routes include `GET /api/health`, `POST /api/auth/request-link`, and `GET /api/auth/verify`.
 - Protected routes can read the principal with `@CurrentPrincipal()` in controllers.
 - Services can read the request principal through `AuthContext.getPrincipal()` or require one with `AuthContext.requirePrincipal()`.
 - `GET /api/auth/check` is the minimal protected auth-check endpoint for validating the route pattern; it is not a user profile endpoint and does not persist users.
 - `GET /api/me` is the protected local-user endpoint. It reads tenant id from `TenantResolver` request context, reads the authenticated principal from `AuthGuard`, creates or updates the tenant-scoped user, and returns only the local user record.
+- `GET/POST/PATCH/DELETE /api/example` are protected user-owned CRUD routes. They resolve the local user before touching domain data and ignore any client-supplied owner fields.
 
 `AUTH_PROVIDER=internal_magic_link` accepts existing opaque magic-link API bearer tokens and signed session cookies. Compact OIDC JWTs are rejected in this mode. `AUTH_PROVIDER=oidc` accepts valid OIDC JWT bearer tokens and rejects magic-link bearer tokens or session cookies. `AUTH_PROVIDER=none` does not create authenticated principals for protected routes.
 
