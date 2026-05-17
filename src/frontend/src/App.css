@@ -62,6 +62,20 @@ body {
   margin-bottom: var(--space-sm);
 }
 
+.deploy-switcher {
+  color: var(--color-muted);
+  font-size: 0.813rem;
+}
+
+.deploy-switcher a {
+  color: var(--color-text);
+  text-underline-offset: 2px;
+}
+
+.deploy-switcher a:hover {
+  color: var(--color-muted);
+}
+
 /* ── Sections ── */
 .section {
   margin-bottom: var(--space-lg);

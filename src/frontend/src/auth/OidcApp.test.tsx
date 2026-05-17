@@ -37,6 +37,10 @@ describe('OidcApp', () => {
     mockUseAuth0.mockReturnValue({ ...baseAuth0, isAuthenticated: false });
     render(<OidcApp />);
     expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /compare the magic-link deployment/i })).toHaveAttribute(
+      'href',
+      'https://reference-architecture.603.nz',
+    );
     expect(screen.getByRole('button', { name: /log in with auth0/i })).toBeInTheDocument();
     expect(screen.getByText(/local app user/i)).toBeInTheDocument();
   });
