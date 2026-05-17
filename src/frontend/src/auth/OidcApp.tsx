@@ -154,21 +154,32 @@ export function OidcApp() {
       <hr className="section-divider" />
 
       {!isAuthenticated && (
-        <section className="section">
-          <h2 className="section-header">Sign In</h2>
-          <p className="auth-description">Sign in with Auth0 to continue.</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => loginWithRedirect()}
-          >
-            Log In
-          </button>
-          {error && (
-            <p className="error-message">
-              Sign-in failed: {error.message}
+        <>
+          <section className="section">
+            <h2 className="section-header">Sign In</h2>
+            <p className="auth-description">
+              Sign in with Auth0 to view and manage your examples. Example records are scoped to your user.
             </p>
-          )}
-        </section>
+            <button
+              className="btn btn-primary"
+              onClick={() => loginWithRedirect()}
+            >
+              Log In
+            </button>
+            {error && (
+              <p className="error-message">
+                Sign-in failed: {error.message}
+              </p>
+            )}
+          </section>
+
+          <section className="section">
+            <h2 className="section-header">Examples</h2>
+            <p className="empty-state">
+              Sign in first to view your user-scoped examples and use CRUD actions.
+            </p>
+          </section>
+        </>
       )}
 
       {isAuthenticated && (
@@ -192,6 +203,9 @@ export function OidcApp() {
 
           <section className="section">
             <h2 className="section-header">Create Example</h2>
+            <p className="section-note">
+              Create, edit, and delete actions apply only to examples owned by your signed-in user.
+            </p>
             <form onSubmit={handleCreate} className="create-form">
               <input
                 type="text"

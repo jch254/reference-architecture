@@ -27,6 +27,8 @@ export default function HomeScreen({ navigation }: Props) {
       ) : session.data ? (
         <View style={styles.card}>
           <Typography variant="body">Signed in as {session.data.email}</Typography>
+          <Spacer size={4} />
+          <Typography variant="caption">Examples are scoped to your user.</Typography>
         </View>
       ) : session.error ? (
         <Typography variant="body">Failed to load session</Typography>

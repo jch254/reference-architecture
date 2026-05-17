@@ -91,8 +91,12 @@ export function App() {
   }, [handleApiError]);
 
   useEffect(() => {
-    if (authState === 'authenticated' || authState === 'unauthenticated') {
+    if (authState === 'authenticated') {
       fetchExamples();
+    } else if (authState === 'unauthenticated' || authState === 'sent') {
+      setExamples([]);
+      setRawResponse('');
+      setError(null);
     }
   }, [authState, fetchExamples]);
 
@@ -185,7 +189,9 @@ export function App() {
       {authState === 'unauthenticated' && (
         <section className="section">
           <h2 className="section-header">Sign In</h2>
-          <p className="auth-description">Enter your email address and we'll send you a sign-in link.</p>
+          <p className="auth-description">
+            Sign in to view and manage your examples. Example records are scoped to your user.
+          </p>
           <form onSubmit={handleLogin} className="create-form">
             <input
               type="email"
@@ -235,6 +241,9 @@ export function App() {
 
           <section className="section">
             <h2 className="section-header">Create Example</h2>
+            <p className="section-note">
+              Create, edit, and delete actions apply only to examples owned by your signed-in user.
+            </p>
             <form onSubmit={handleSubmit} className="create-form">
               <input
                 type="text"
@@ -256,7 +265,11 @@ export function App() {
 
       <section className="section">
         <h2 className="section-header">Examples</h2>
-        {examples.length === 0 ? (
+        {authState !== 'authenticated' ? (
+          <p className="empty-state">
+            Sign in first to view your user-scoped examples and use CRUD actions.
+          </p>
+        ) : examples.length === 0 ? (
           <p className="empty-state">No examples yet.</p>
         ) : (
           <div className="example-list">

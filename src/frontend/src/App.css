@@ -73,6 +73,12 @@ body {
   margin-bottom: var(--space-md);
 }
 
+.section-note {
+  color: var(--color-muted);
+  font-size: 0.813rem;
+  margin-bottom: var(--space-md);
+}
+
 /* ── Auth bar ── */
 .auth-bar {
   display: flex;

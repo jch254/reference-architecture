@@ -34,6 +34,10 @@ export default function SignInScreen({ navigation }: Props) {
   return (
     <ScreenLayout>
       <Typography variant="title">Sign In</Typography>
+      <Spacer size={8} />
+      <Typography variant="body">
+        Sign in to view and manage your examples. Example records are scoped to your user.
+      </Typography>
       <Spacer size={24} />
       <TextInput
         style={styles.input}

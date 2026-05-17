@@ -37,6 +37,7 @@ describe('OidcApp', () => {
     mockUseAuth0.mockReturnValue({ ...baseAuth0, isAuthenticated: false });
     render(<OidcApp />);
     expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument();
+    expect(screen.getByText(/user-scoped examples/i)).toBeInTheDocument();
   });
 
   it('calls /api/me with a bearer token and shows logout when authenticated', async () => {
