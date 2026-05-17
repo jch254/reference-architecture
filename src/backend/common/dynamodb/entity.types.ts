@@ -27,6 +27,16 @@ export const Keys = {
     SK: `API_TOKEN#${tokenId}`,
   }),
 
+  user: (tenantId: string, userId: string) => ({
+    PK: `TENANT#${tenantId}`,
+    SK: `USER#${userId}`,
+  }),
+
+  userIdentity: (tenantId: string, provider: string, subjectHash: string) => ({
+    PK: `TENANT#${tenantId}`,
+    SK: `USER_IDENTITY#${provider}#${subjectHash}`,
+  }),
+
   tenantAdmin: (tenantId: string) => ({
     PK: `TENANT#${tenantId}`,
     SK: 'TENANT_ADMIN',
@@ -38,6 +48,8 @@ export const SKPrefix = {
   EVENT: 'EVENT#',
   AUTH_TOKEN: 'AUTH_TOKEN#',
   API_TOKEN: 'API_TOKEN#',
+  USER: 'USER#',
+  USER_IDENTITY: 'USER_IDENTITY#',
   TENANT_ADMIN: 'TENANT_ADMIN',
 };
 

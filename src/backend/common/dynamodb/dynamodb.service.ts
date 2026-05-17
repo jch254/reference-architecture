@@ -6,6 +6,8 @@ import {
   NativeAttributeValue,
   PutCommand,
   QueryCommand,
+  TransactWriteCommand,
+  TransactWriteCommandInput,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { Injectable, Logger } from '@nestjs/common';
@@ -65,6 +67,16 @@ export class DynamoDbService {
   ): Promise<void> {
     await this.docClient.send(
       new PutCommand({ TableName: tableName, Item: item }),
+    );
+  }
+
+  async transactWrite(
+    items: NonNullable<TransactWriteCommandInput['TransactItems']>,
+  ): Promise<void> {
+    await this.docClient.send(
+      new TransactWriteCommand({
+        TransactItems: items,
+      }),
     );
   }
 

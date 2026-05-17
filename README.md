@@ -92,6 +92,7 @@ This architecture follows the core ideas of the [Twelve-Factor App](https://12fa
 - `PATCH  /api/example/:id`  
 - `DELETE /api/example/:id`  
 - `GET    /api/auth/check`
+- `GET    /api/me`
 
 ---
 
@@ -129,7 +130,7 @@ Subdomain mode preserves the original Reference Architecture pattern: `acme.your
 |---|---|---|---|
 | `*.example.com` | `product-prod` | `subdomain` | `TENANT#acme`, `TENANT#demo`, `TENANT#jordan` |
 
-Existing DynamoDB keys remain tenant-aware in both modes: `PK = TENANT#<tenantId>`. Persisted tenant fields such as `tenantSlug` should remain on records that store them. Global app content can live under the configured tenant. Private future resources should still add `userId` scoping once auth/user ownership is added.
+Existing DynamoDB keys remain tenant-aware in both modes: `PK = TENANT#<tenantId>`. Persisted tenant fields such as `tenantSlug` should remain on records that store them. Global app content can live under the configured tenant. Private resources should scope ownership from the local user returned by `/api/me`.
 
 ### Authentication providers
 
@@ -162,6 +163,17 @@ The active provider normalizes into:
 
 Authentication does not control tenancy. Tenant id still comes only from `TenantResolver` according to `TENANT_RESOLUTION_MODE`; JWT tenant, organization, or custom claims are ignored for tenant resolution. Auth0 Organizations are not used by default.
 
+`AuthPrincipal` is provider identity, not the local app user. `GET /api/auth/check` stays a lightweight protected route that returns the normalized principal and does not persist users. `GET /api/me` finds or creates a tenant-scoped `User` for the current tenant plus `provider + subject`, updates `lastSeenAt` and safe profile fields, and returns that local user. Email is profile data only: it is not the primary identity key, the same email across providers is not merged, and account linking is out of scope.
+
+User records use the existing single-table layout without a GSI:
+
+```text
+PK = TENANT#<tenantId>   SK = USER#<userId>
+PK = TENANT#<tenantId>   SK = USER_IDENTITY#<provider>#<sha256(providerSubject)>
+```
+
+The identity lookup item makes `/api/me` deterministic without scanning a tenant. Handscape-style products should use `/api/me` as the starting point for user-owned data, then store future resources under the resolved tenant and local `userId`.
+
 Current deployment matrix:
 
 | Host | Purpose | Terraform var file | State key | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
@@ -187,6 +199,15 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
 ```
 
 Expected success returns `authenticated: true` with an OIDC principal. Magic-link bearer tokens and session cookies should be rejected by this deployment.
+
+To verify local user persistence for the same token, call:
+
+```bash
+curl -H "Authorization: Bearer $AUTH_BEARER_TOKEN" \
+  https://reference-architecture-auth0.603.nz/api/me
+```
+
+Expected success returns `data.user` with `provider: "oidc"` and the fixed deployment tenant id. The smoke validator intentionally remains focused on `/api/auth/check` so CI does not create persistent users unless a future validation step explicitly opts into that.
 
 The automated smoke validator can run the same OIDC check when a bearer token is supplied:
 

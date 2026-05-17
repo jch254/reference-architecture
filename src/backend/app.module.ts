@@ -8,6 +8,7 @@ import { TenantResolver } from './common/context/tenant.resolver';
 import { DynamoDbModule } from './common/dynamodb/dynamodb.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ExampleModule } from './modules/example/example.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ExampleModule } from './modules/example/example.module';
     }]),
     DynamoDbModule,
     AuthModule,
+    UsersModule,
     ExampleModule,
   ],
   providers: [TenantResolver],

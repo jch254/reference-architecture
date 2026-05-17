@@ -83,7 +83,7 @@ Both fixed and subdomain modes preserve the same key shape. Fixed mode still wri
 
 Persisted tenant fields such as `tenantSlug` should remain on records that store them in both modes. Do not remove tenant attributes or `TENANT#` prefixes just because a deployment uses fixed mode.
 
-Global app content can live under the configured tenant. Private future resources should still be scoped by `tenantId + userId` once auth/user ownership is added.
+Global app content can live under the configured tenant. Private resources should scope ownership from the local user returned by `GET /api/me`.
 
 ### Auth isolation
 
@@ -121,7 +121,7 @@ AUTH_PROVIDER=internal_magic_link
 
 Handscape-style single-product apps should normally use `TENANT_RESOLUTION_MODE=fixed` and `AUTH_PROVIDER=oidc`. Namaste/Lush-style apps may use `AUTH_PROVIDER=internal_magic_link`. Auth0-hosted passwordless, social, or passkey choices are external to this backend; the backend only validates OIDC access tokens.
 
-### Principal shape
+### Principal and user identity
 
 Valid auth from either provider is normalized into `AuthPrincipal`:
 
@@ -137,6 +137,17 @@ Valid auth from either provider is normalized into `AuthPrincipal`:
 
 For OIDC, `subject` comes from JWT `sub`. For magic-link/session/API-token auth, `subject` is the normalized email used by the existing flow. Auth0 SDK types and provider-specific claim bags are not exposed to domain services.
 
+`AuthPrincipal` is provider identity. The local app identity is `User`, created lazily by `GET /api/me` inside the resolved tenant. Identity is keyed by `tenantId + provider + providerSubject`, never by email. Same email across providers or subjects creates separate local users; account linking and email-based merge are deliberately out of scope.
+
+User persistence keeps the existing single-table convention and does not require a GSI:
+
+```text
+PK = TENANT#<tenantId>   SK = USER#<userId>
+PK = TENANT#<tenantId>   SK = USER_IDENTITY#<provider>#<sha256(providerSubject)>
+```
+
+The `USER_IDENTITY` lookup item is deterministic, so `/api/me` can find the local user without scanning the tenant partition. The `USER` item stores `userId`, `tenantId`, `provider`, `providerSubject`, optional `email/name/picture`, `createdAt`, `updatedAt`, and `lastSeenAt`.
+
 ### Protected and public routes
 
 `AuthGuard` is registered globally. Routes are protected unless marked with `@Public()`.
@@ -145,6 +156,7 @@ For OIDC, `subject` comes from JWT `sub`. For magic-link/session/API-token auth,
 - Protected routes can read the principal with `@CurrentPrincipal()` in controllers.
 - Services can read the request principal through `AuthContext.getPrincipal()` or require one with `AuthContext.requirePrincipal()`.
 - `GET /api/auth/check` is the minimal protected auth-check endpoint for validating the route pattern; it is not a user profile endpoint and does not persist users.
+- `GET /api/me` is the protected local-user endpoint. It reads tenant id from `TenantResolver` request context, reads the authenticated principal from `AuthGuard`, creates or updates the tenant-scoped user, and returns only the local user record.
 
 `AUTH_PROVIDER=internal_magic_link` accepts existing opaque magic-link API bearer tokens and signed session cookies. Compact OIDC JWTs are rejected in this mode. `AUTH_PROVIDER=oidc` accepts valid OIDC JWT bearer tokens and rejects magic-link bearer tokens or session cookies. `AUTH_PROVIDER=none` does not create authenticated principals for protected routes.
 
@@ -157,7 +169,7 @@ Authentication must not control tenancy:
 - Subdomain mode continues to derive tenant from `Host`.
 - JWT tenant, organization, or custom claims are ignored for tenant resolution.
 - Auth0 Organizations are not used by default.
-- No workspace, organization routing, RBAC, or user persistence is part of the reference backend auth layer.
+- No workspace, organization routing, RBAC, profile editing, account linking, or email merge is part of the reference backend auth layer.
 
 ### Public demo deployments
 
@@ -183,6 +195,13 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
   https://reference-architecture-auth0.603.nz/api/auth/check
 ```
 
+Verify local user creation and lookup with the same token:
+
+```bash
+curl -H "Authorization: Bearer $AUTH_BEARER_TOKEN" \
+  https://reference-architecture-auth0.603.nz/api/me
+```
+
 The system validator can perform the same OIDC smoke check with a supplied token:
 
 ```bash
@@ -192,7 +211,7 @@ AUTH_BEARER_TOKEN="$AUTH0_ACCESS_TOKEN" \
 pnpm run validate
 ```
 
-For `VALIDATION_AUTH_PROVIDER=oidc`, validation checks `/api/health`, checks that `/api/auth/check` returns `401` without a bearer token, and checks `authenticated: true` plus `principal.provider: "oidc"` when `AUTH_BEARER_TOKEN` is present. Without a token it prints a partial-validation skip unless `VALIDATION_REQUIRE_AUTH=true` is set. The validator does not fetch Auth0 tokens or manage client credentials; obtain tokens outside the script and keep secrets out of source control and logs.
+For `VALIDATION_AUTH_PROVIDER=oidc`, validation checks `/api/health`, checks that `/api/auth/check` returns `401` without a bearer token, and checks `authenticated: true` plus `principal.provider: "oidc"` when `AUTH_BEARER_TOKEN` is present. It does not call `/api/me`, so deploy validation does not create persistent users unless that is explicitly added later. Without a token it prints a partial-validation skip unless `VALIDATION_REQUIRE_AUTH=true` is set. The validator does not fetch Auth0 tokens or manage client credentials; obtain tokens outside the script and keep secrets out of source control and logs.
 
 Auth0 dashboard setup is manual: configure an API audience matching `OIDC_AUDIENCE`, use the Auth0 tenant issuer as `OIDC_ISSUER`, and only add callback/logout/origin URLs when a browser login flow is introduced. For that future flow, use `https://reference-architecture-auth0.603.nz` as the origin/logout base.
 

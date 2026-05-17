@@ -114,6 +114,15 @@ describe('AuthGuard — selected auth provider resolution', () => {
       expect(mockAuthService.validateSession).not.toHaveBeenCalled();
     });
 
+    it('rejects protected routes such as /api/me without a bearer token', async () => {
+      const { context } = createMockContext({
+        tenantSlug: 'tenant-a',
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      expect(mockOidcJwtValidator.validate).not.toHaveBeenCalled();
+    });
+
     it('rejects a magic-link opaque bearer token', async () => {
       const { context } = createMockContext({
         authorization: 'Bearer opaque-magic-token',
