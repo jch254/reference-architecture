@@ -104,4 +104,9 @@ export const config = {
   sessionMaxAgeDays: 7,
   authProvider,
   oidc,
+  // Auth0 SPA application client id. Public (safe to expose to the browser),
+  // deployment-specific, and surfaced via the runtime /api/config endpoint so
+  // the same frontend bundle works for every deployment. Never the M2M or
+  // client-secret value.
+  auth0SpaClientId: process.env.AUTH0_SPA_CLIENT_ID || '',
 };

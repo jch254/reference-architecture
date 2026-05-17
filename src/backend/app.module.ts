@@ -7,6 +7,7 @@ import { TenantMiddleware } from './common/context/tenant.middleware';
 import { TenantResolver } from './common/context/tenant.resolver';
 import { DynamoDbModule } from './common/dynamodb/dynamodb.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AppConfigModule } from './modules/config/config.module';
 import { ExampleModule } from './modules/example/example.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -22,6 +23,7 @@ import { UsersModule } from './modules/users/users.module';
     }]),
     DynamoDbModule,
     AuthModule,
+    AppConfigModule,
     UsersModule,
     ExampleModule,
   ],
@@ -30,6 +32,9 @@ import { UsersModule } from './modules/users/users.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestContextMiddleware).forRoutes('{*path}');
-    consumer.apply(TenantMiddleware).exclude('api/health').forRoutes('{*path}');
+    consumer
+      .apply(TenantMiddleware)
+      .exclude('api/health', 'api/config')
+      .forRoutes('{*path}');
   }
 }

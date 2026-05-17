@@ -143,6 +143,7 @@ Backend authentication is provider-neutral in code, but each deployment chooses 
 | `OIDC_ISSUER` | when `AUTH_PROVIDER=oidc` | — | Auth0-compatible issuer, e.g. `https://example.auth0.com/` |
 | `OIDC_AUDIENCE` | when `AUTH_PROVIDER=oidc` | — | Expected API audience, e.g. `https://api.example.com` or `api://reference` |
 | `OIDC_JWKS_URI` | no | derived | Optional explicit JWKS URI, e.g. `https://example.auth0.com/.well-known/jwks.json` |
+| `AUTH0_SPA_CLIENT_ID` | no | — | Public Auth0 SPA client id, surfaced to the browser via `GET /api/config` for the frontend Auth0 login flow. Not a secret; never the M2M client id or any client secret |
 
 Tenant resolution and auth provider selection are separate axes. For example, Handscape-style single-product apps should normally use `TENANT_RESOLUTION_MODE=fixed` with `AUTH_PROVIDER=oidc`. Namaste/Lush-style apps may use `AUTH_PROVIDER=internal_magic_link` with either tenant mode. Auth0-hosted passwordless, social, or passkey choices are external to this backend; the backend only validates OIDC JWTs.
 
@@ -196,6 +197,44 @@ Listing uses `PK = TENANT#<tenantId>` plus `begins_with(SK, USER#<userId>#EXAMPL
 
 This is the same pattern Handscape-style apps should use for saved protocols, favourites, notes, and history: tenant id comes from the deployment/request, ownership comes from the local user model, and email/provider subject remain identity inputs rather than domain owner ids.
 
+### Frontend authentication
+
+The frontend is a single Vite bundle served same-origin by the backend, and the
+same bundle ships to every deployment. It does not use build-time `VITE_*` auth
+env. Instead it calls a public runtime endpoint at boot:
+
+```bash
+curl https://reference-architecture.603.nz/api/config
+# { "data": { "authProvider": "internal_magic_link", "auth0": null } }
+
+curl https://reference-architecture-auth0.603.nz/api/config
+# { "data": { "authProvider": "oidc",
+#   "auth0": { "domain": "...", "clientId": "...", "audience": ".../api" } } }
+```
+
+`GET /api/config` is public, tenant-independent, and returns only public values
+(the Auth0 SPA client id is public; no secrets are exposed). The frontend then:
+
+- `internal_magic_link` / `none` → renders the existing magic-link demo UI
+  unchanged. No Auth0 config is required or loaded.
+- `oidc` with a populated `auth0` block → wraps the app in `Auth0Provider`
+  (`@auth0/auth0-react`), shows Auth0 Universal Login (login/logout), and
+  requests an access token for the configured API `audience`. The API client
+  attaches `Authorization: Bearer <access_token>` to `/api/me`, `/api/auth/check`,
+  and example CRUD. After login the app bootstraps via `GET /api/me` (the local
+  tenant-scoped user); `/api/auth/check` stays available for auth debugging.
+- `oidc` with no `auth0` block (missing `AUTH0_SPA_CLIENT_ID`) → the frontend
+  shows a clear configuration message instead of a broken login.
+
+Because the auth provider is resolved at runtime, the Auth0 demo build receives
+no special frontend env: setting `auth_provider = "oidc"` and
+`auth0_spa_client_id` in the deployment's Terraform var file is sufficient. The
+existing `reference-architecture.603.nz` demo is unaffected — its
+`/api/config` reports `internal_magic_link` and the magic-link UI is preserved.
+
+401s are handled predictably (signed-out state, no retry loop) and access
+tokens are never logged.
+
 Current deployment matrix:
 
 | Host | Purpose | Terraform var file | State key | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
@@ -205,7 +244,7 @@ Current deployment matrix:
 
 The Terraform root still models one deployment identity at a time. The Auth0 demo is a second state/var-file deployment using the same modules and app code, so `reference-architecture.603.nz` keeps its existing resource names and state while `reference-architecture-auth0.603.nz` gets its own ECS service, task definition, API custom domain, certificate, CodeBuild project, SSM placeholders, and DynamoDB table named from `reference-architecture-auth0`.
 
-The Auth0 demo is backend-only for now. The frontend does not include an Auth0 login/logout flow yet, so CodeBuild validation is disabled for that deployment until a secure bearer-token injection path is configured. Public routing can be checked with:
+The Auth0 demo now includes a frontend Auth0 login/logout flow (see [Frontend authentication](#frontend-authentication)). CodeBuild system validation remains disabled for that deployment until a secure bearer-token injection path is configured; the browser flow is verified manually after Auth0 SPA dashboard setup. Public routing can be checked with:
 
 ```bash
 curl https://reference-architecture-auth0.603.nz/api/health
@@ -246,10 +285,22 @@ The two public demos use the same `buildspec.yml`, but not the same build execut
 
 Manual Auth0 dashboard setup for `reference-architecture-auth0.603.nz`:
 
-- Create or choose an Auth0 API and set its identifier to the `oidc_audience` value used in Terraform.
+API (backend token validation):
+
+- Create or choose an Auth0 API and set its identifier to the `oidc_audience` value used in Terraform (`https://reference-architecture-auth0.603.nz/api`).
 - Set `oidc_issuer` to the Auth0 tenant issuer, for example `https://your-tenant.region.auth0.com/`.
 - Leave `oidc_jwks_uri` unset unless Auth0 requires an explicit JWKS URI override; the backend derives `/.well-known/jwks.json`.
-- If a future browser login is added, use `https://reference-architecture-auth0.603.nz` for allowed web origins and logout URLs, and add the future callback URL used by that frontend flow. No callback URL is required for the current backend-only bearer-token check.
+
+SPA application (frontend browser login):
+
+- Create an Auth0 **Single Page Application** (not the M2M client). The M2M client is only for backend `curl` testing with a `client_credentials` token; the browser login flow must use the SPA application.
+- Put the SPA application's client id in `auth0_spa_client_id` in `infrastructure/terraform/environments/prod-auth0/terraform.tfvars`. It is a public value (safe to commit/expose), but deployment-specific. Never put the client secret in Terraform or the frontend.
+- Configure the SPA application URLs:
+  - Allowed Callback URLs: `https://reference-architecture-auth0.603.nz`
+  - Allowed Logout URLs: `https://reference-architecture-auth0.603.nz`
+  - Allowed Web Origins: `https://reference-architecture-auth0.603.nz`
+  - Allowed Origins (CORS), if prompted: `https://reference-architecture-auth0.603.nz`
+- For local development against an OIDC backend, also add `http://localhost:3000` (and `http://localhost:5173` if using the Vite dev server) to the same URL lists.
 
 ---
 

@@ -13,6 +13,13 @@ auth_provider          = "oidc"
 oidc_issuer   = "https://603.au.auth0.com/"
 oidc_audience = "https://reference-architecture-auth0.603.nz/api"
 
+# Auth0 SPA application client id for the browser login flow. Public, not a
+# secret, but deployment-specific — replace with the real SPA client id before
+# applying. This must be the Auth0 SPA application, not the M2M client used for
+# backend curl testing. Leave commented/unset to deploy the backend without the
+# frontend login flow enabled.
+# auth0_spa_client_id = "REPLACE_WITH_AUTH0_SPA_CLIENT_ID"
+
 vpc_id = "vpc-0844e8018ce450134"
 
 build_docker_image = "jch254/docker-node-terraform-aws"

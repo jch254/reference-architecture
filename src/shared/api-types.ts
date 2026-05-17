@@ -22,3 +22,21 @@ export interface ApiErrorResponse {
     requestId?: string;
   };
 }
+
+/** Provider-neutral auth provider selector exposed to clients. */
+export type RuntimeAuthProvider = 'none' | 'internal_magic_link' | 'oidc';
+
+/**
+ * Public runtime config served by GET /api/config. Lets a single frontend
+ * bundle adapt to each deployment's auth provider without build-time env.
+ * All values here are public (no secrets); `auth0` is only populated when the
+ * deployment runs AUTH_PROVIDER=oidc with a configured SPA client id.
+ */
+export interface RuntimeConfig {
+  authProvider: RuntimeAuthProvider;
+  auth0: {
+    domain: string;
+    clientId: string;
+    audience: string;
+  } | null;
+}

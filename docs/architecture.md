@@ -24,6 +24,7 @@
 Client → Cloudflare (TLS + proxy) → API Gateway (custom domain) → VPC Link → Cloud Map → ECS Fargate → NestJS
 
 - `/api/*` → NestJS controllers
+- `/api/config` → public runtime config (auth provider + public Auth0 SPA settings); tenant-independent
 - `/*` → static files (Vite build output) with SPA fallback to `index.html`
 
 Tenant resolution and authentication are separate request concerns. `TenantMiddleware` resolves the runtime tenant first and stores it on the request context. `AuthGuard` then resolves an authenticated principal for protected routes. The auth principal is never used to choose the tenant.
@@ -193,7 +194,7 @@ The public demos are separate deployment identities rather than one mixed-provid
 
 The Auth0 deployment uses its own DynamoDB table, derived from `name = "reference-architecture-auth0"`, while preserving the logical tenant key `PK = TENANT#refarch-auth0-demo`. It does not select tables dynamically from request tenants.
 
-The Auth0 demo is backend-only until a frontend Auth0 login flow is added. CodeBuild validation stays disabled for this deployment until a secure `AUTH_BEARER_TOKEN` injection path is configured. Public routing should return the standard health response:
+The Auth0 demo now has a frontend Auth0 login/logout flow in addition to the backend bearer-token validation (see [Frontend auth resolution](#frontend-auth-resolution)). CodeBuild system validation stays disabled for this deployment until a secure `AUTH_BEARER_TOKEN` injection path is configured; the browser flow is verified manually after Auth0 SPA dashboard setup. Public routing should return the standard health response:
 
 ```bash
 curl https://reference-architecture-auth0.603.nz/api/health
@@ -224,6 +225,22 @@ pnpm run validate
 
 For `VALIDATION_AUTH_PROVIDER=oidc`, validation checks `/api/health`, checks that `/api/auth/check` returns `401` without a bearer token, and checks `authenticated: true` plus `principal.provider: "oidc"` when `AUTH_BEARER_TOKEN` is present. It does not call `/api/me`, so deploy validation does not create persistent users unless that is explicitly added later. Without a token it prints a partial-validation skip unless `VALIDATION_REQUIRE_AUTH=true` is set. The validator does not fetch Auth0 tokens or manage client credentials; obtain tokens outside the script and keep secrets out of source control and logs.
 
-Auth0 dashboard setup is manual: configure an API audience matching `OIDC_AUDIENCE`, use the Auth0 tenant issuer as `OIDC_ISSUER`, and only add callback/logout/origin URLs when a browser login flow is introduced. For that future flow, use `https://reference-architecture-auth0.603.nz` as the origin/logout base.
+Auth0 dashboard setup is manual and now spans two Auth0 entities:
+
+- An Auth0 **API** whose identifier matches `OIDC_AUDIENCE`, with the Auth0 tenant issuer as `OIDC_ISSUER`. Used for backend JWT validation.
+- An Auth0 **Single Page Application** for the browser login flow. Its public client id goes in `auth0_spa_client_id` (Terraform var, surfaced via `/api/config`). Allowed Callback URLs, Allowed Logout URLs, Allowed Web Origins, and Allowed Origins (CORS) are all `https://reference-architecture-auth0.603.nz`.
+
+The M2M client (`client_credentials`) is for backend `curl`/validation only and must not be used as the frontend SPA client. Client secrets never go in Terraform or the frontend.
+
+### Frontend auth resolution
+
+The frontend is one Vite bundle served same-origin and shared by every deployment, so it does not use build-time `VITE_*` auth env. At boot it fetches the public, tenant-independent `GET /api/config`, which reflects the backend's own runtime env:
+
+```json
+{ "authProvider": "oidc",
+  "auth0": { "domain": "<issuer host>", "clientId": "<public SPA client id>", "audience": "<OIDC_AUDIENCE>" } }
+```
+
+`authProvider` is `none` | `internal_magic_link` | `oidc`. For `oidc` with a populated `auth0` block the frontend mounts `Auth0Provider` (`@auth0/auth0-react`), runs Auth0 Universal Login, and attaches `Authorization: Bearer <access_token>` (audience-scoped) to `/api/me`, `/api/auth/check`, and example CRUD, bootstrapping via `/api/me`. For `none`/`internal_magic_link` it renders the existing magic-link UI unchanged with no Auth0 dependency required. Only public values are exposed; the Auth0 SPA client id is public and no secret is returned. This keeps the existing `reference-architecture.603.nz` demo byte-for-byte unaffected while letting `reference-architecture-auth0.603.nz` enable Auth0 purely through its Terraform var file.
 
 The public demos share app code and `buildspec.yml`, but deploy as separate CodeBuild runs. Future pushes to `main` can run both deployment identities in parallel once both CodeBuild webhooks exist.

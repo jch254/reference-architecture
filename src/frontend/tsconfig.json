@@ -11,5 +11,6 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["src", "../shared"]
+  "include": ["src", "../shared"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

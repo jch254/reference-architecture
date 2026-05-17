@@ -28,6 +28,35 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+/**
+ * Optional async bearer-token source. OIDC deployments register an Auth0
+ * access-token getter here; magic-link/default deployments leave it unset and
+ * fall back to the localStorage token (plus the signed session cookie).
+ * Only one auth provider is active per deployment, so a module-level slot is
+ * sufficient and avoids threading the token through every call site.
+ */
+type TokenProvider = () => Promise<string | null> | string | null;
+
+let tokenProvider: TokenProvider | null = null;
+
+export function setTokenProvider(provider: TokenProvider | null): void {
+  tokenProvider = provider;
+}
+
+async function resolveToken(): Promise<string | null> {
+  if (tokenProvider) {
+    try {
+      return await tokenProvider();
+    } catch {
+      // Token acquisition failed (e.g. login required / refresh expired).
+      // Treat as unauthenticated rather than throwing here; the request will
+      // proceed without a token and the API returns a predictable 401.
+      return null;
+    }
+  }
+  return getToken();
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -37,7 +66,7 @@ interface RequestOptions {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options;
 
-  const token = getToken();
+  const token = await resolveToken();
 
   const init: RequestInit = {
     method,

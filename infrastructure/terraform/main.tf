@@ -109,6 +109,12 @@ module "ecs_http_service" {
         value = var.oidc_jwks_uri
       }
     ],
+    var.auth0_spa_client_id == null ? [] : [
+      {
+        name  = "AUTH0_SPA_CLIENT_ID"
+        value = var.auth0_spa_client_id
+      }
+    ],
   )
 
   secrets = [

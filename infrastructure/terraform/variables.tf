@@ -65,6 +65,17 @@ variable "oidc_jwks_uri" {
   default     = null
 }
 
+variable "auth0_spa_client_id" {
+  description = "Auth0 SPA application client id, surfaced to the frontend via the public /api/config endpoint when auth_provider is oidc. This is a public value (not a secret); do not use the M2M client id or any client secret here."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.auth0_spa_client_id == null || length(trimspace(var.auth0_spa_client_id)) > 0
+    error_message = "auth0_spa_client_id must be null or a non-empty string."
+  }
+}
+
 variable "vpc_id" {
   description = "ID of existing VPC to use"
   type        = string
