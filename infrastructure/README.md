@@ -185,6 +185,10 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" https://<host>/api/auth/chec
 Confirm existing deployments (e.g. `https://reference-architecture.603.nz`)
 still report their own `/api/config` and behave unchanged.
 
+If the browser console shows a CSP error blocking the Cloudflare analytics
+beacon (`static.cloudflareinsights.com` / `cloudflareinsights.com`), redeploy
+with the latest backend image — older images did not include those origins.
+
 If the browser console shows a CSP error blocking
 `https://<auth0-domain>/oauth/token` (`connect-src`/`frame-src`), the
 deployment's `OIDC_ISSUER` is wrong or missing: the backend derives the

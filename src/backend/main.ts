@@ -13,32 +13,38 @@ import { ApiResponseInterceptor } from './common/api/response.interceptor';
 import { config } from './common/config';
 
 /**
- * Helmet with a strict default CSP. For OIDC deployments the Auth0 SPA SDK
- * must reach the Auth0 origin to exchange the authorization code for tokens
- * (`connect-src`) and to run silent token renewal in a hidden iframe
- * (`frame-src`), so the Auth0 issuer origin is added to those directives only
- * when AUTH_PROVIDER=oidc. Non-OIDC deployments keep the strict same-origin
- * default unchanged.
+ * Helmet with a strict default CSP.
+ *
+ * All deployments run behind the Cloudflare proxy, which auto-injects the
+ * Cloudflare Web Analytics beacon script. `script-src` always allows
+ * `static.cloudflareinsights.com` and `connect-src` always allows
+ * `cloudflareinsights.com` so the beacon can load and report.
+ *
+ * For OIDC deployments the Auth0 SPA SDK must reach the Auth0 origin to
+ * exchange the authorization code for tokens (`connect-src`) and to run
+ * silent token renewal in a hidden iframe (`frame-src`), so the Auth0 issuer
+ * origin is added to those directives only when AUTH_PROVIDER=oidc.
  */
 function buildHelmet(): ReturnType<typeof helmet> {
-  if (config.authProvider !== 'oidc') {
-    return helmet();
+  let auth0Extra: string[] = [];
+  if (config.authProvider === 'oidc') {
+    try {
+      const auth0Origin = new URL(config.oidc.issuer).origin;
+      if (auth0Origin) {
+        auth0Extra = [auth0Origin];
+      }
+    } catch {
+      // Issuer URL invalid; auth0Extra stays empty.
+    }
   }
-
-  let auth0Origin: string | undefined;
-  try {
-    auth0Origin = new URL(config.oidc.issuer).origin;
-  } catch {
-    auth0Origin = undefined;
-  }
-  const extra = auth0Origin ? [auth0Origin] : [];
 
   return helmet({
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
-        'connect-src': ["'self'", ...extra],
-        'frame-src': ["'self'", ...extra],
+        'script-src': ["'self'", 'https://static.cloudflareinsights.com'],
+        'connect-src': ["'self'", 'https://cloudflareinsights.com', ...auth0Extra],
+        'frame-src': ["'self'", ...auth0Extra],
       },
     },
   });
