@@ -1,7 +1,9 @@
 import { useAuth0 } from '@auth0/auth0-react';
 import { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
 
+import { AppHeader } from '../AppHeader';
 import { api, ApiError, setTokenProvider } from '../api/api-client';
+import { getDemoCopy } from '../demo-copy';
 
 interface Example {
   id: string;
@@ -24,6 +26,7 @@ interface LocalUser {
  * component never runs there.
  */
 export function OidcApp() {
+  const copy = getDemoCopy('oidc');
   const {
     isLoading,
     isAuthenticated,
@@ -141,7 +144,7 @@ export function OidcApp() {
   if (isLoading) {
     return (
       <div className="app-container">
-        <h1 className="app-title">Reference Architecture Demo</h1>
+        <AppHeader authProvider="oidc" />
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
       </div>
@@ -150,21 +153,19 @@ export function OidcApp() {
 
   return (
     <div className="app-container">
-      <h1 className="app-title">Reference Architecture Demo</h1>
+      <AppHeader authProvider="oidc" />
       <hr className="section-divider" />
 
       {!isAuthenticated && (
         <>
           <section className="section">
             <h2 className="section-header">Sign In</h2>
-            <p className="auth-description">
-              Sign in with Auth0 to view and manage your examples. Example records are scoped to your user.
-            </p>
+            <p className="auth-description">{copy.signInDescription}</p>
             <button
               className="btn btn-primary"
               onClick={() => loginWithRedirect()}
             >
-              Log In
+              {copy.signInButton}
             </button>
             {error && (
               <p className="error-message">
@@ -175,9 +176,7 @@ export function OidcApp() {
 
           <section className="section">
             <h2 className="section-header">Examples</h2>
-            <p className="empty-state">
-              Sign in first to view your user-scoped examples and use CRUD actions.
-            </p>
+            <p className="empty-state">{copy.signedOutExamples}</p>
           </section>
         </>
       )}

@@ -46,10 +46,19 @@ body {
 }
 
 /* ── Title ── */
+.app-header {
+  margin-bottom: var(--space-sm);
+}
+
 .app-title {
   font-size: 1.75rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+}
+
+.app-subtitle {
+  color: var(--color-muted);
+  font-size: 0.875rem;
   margin-bottom: var(--space-sm);
 }
 

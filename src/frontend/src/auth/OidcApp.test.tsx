@@ -36,8 +36,9 @@ describe('OidcApp', () => {
   it('renders a login button when unauthenticated', () => {
     mockUseAuth0.mockReturnValue({ ...baseAuth0, isAuthenticated: false });
     render(<OidcApp />);
-    expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument();
-    expect(screen.getByText(/user-scoped examples/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /log in with auth0/i })).toBeInTheDocument();
+    expect(screen.getByText(/local app user/i)).toBeInTheDocument();
   });
 
   it('calls /api/me with a bearer token and shows logout when authenticated', async () => {

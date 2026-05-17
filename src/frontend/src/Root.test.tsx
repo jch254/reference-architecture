@@ -45,6 +45,8 @@ describe('Root auth-provider selection', () => {
 
     // The existing magic-link sign-in UI renders; Auth0 is never consulted.
     expect(await screen.findByRole('button', { name: /send link/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Reference Architecture Demo' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();
     expect(mockUseAuth0).not.toHaveBeenCalled();
   });
 
@@ -71,7 +73,8 @@ describe('Root auth-provider selection', () => {
     render(<Root />);
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: /log in with auth0/i })).toBeInTheDocument(),
     );
+    expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
   });
 });

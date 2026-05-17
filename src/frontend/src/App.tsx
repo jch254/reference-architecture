@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import './App.css';
+import type { RuntimeAuthProvider } from '../../shared/api-types';
+
+import { AppHeader } from './AppHeader';
 import { api, ApiError, clearToken } from './api/api-client';
+import { getDemoCopy } from './demo-copy';
 
 interface Example {
   id: string;
@@ -11,7 +15,12 @@ interface Example {
 
 type AuthState = 'loading' | 'unauthenticated' | 'sent' | 'authenticated';
 
-export function App() {
+export function App({
+  authProvider = 'internal_magic_link',
+}: {
+  authProvider?: RuntimeAuthProvider;
+}) {
+  const copy = getDemoCopy(authProvider);
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [sessionEmail, setSessionEmail] = useState('');
   const [email, setEmail] = useState('');
@@ -173,7 +182,7 @@ export function App() {
   if (authState === 'loading') {
     return (
       <div className="app-container">
-        <h1 className="app-title">Reference Architecture Demo</h1>
+        <AppHeader authProvider={authProvider} />
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
       </div>
@@ -182,16 +191,14 @@ export function App() {
 
   return (
     <div className="app-container">
-      <h1 className="app-title">Reference Architecture Demo</h1>
+      <AppHeader authProvider={authProvider} />
 
       <hr className="section-divider" />
 
       {authState === 'unauthenticated' && (
         <section className="section">
           <h2 className="section-header">Sign In</h2>
-          <p className="auth-description">
-            Sign in to view and manage your examples. Example records are scoped to your user.
-          </p>
+          <p className="auth-description">{copy.signInDescription}</p>
           <form onSubmit={handleLogin} className="create-form">
             <input
               type="email"
@@ -202,7 +209,7 @@ export function App() {
               autoComplete="email"
             />
             <button type="submit" disabled={loginLoading} className="btn btn-primary">
-              {loginLoading ? 'Sending…' : 'Send link'}
+              {loginLoading ? 'Sending…' : copy.signInButton}
             </button>
           </form>
           {authError && <p className="error-message">{authError}</p>}
@@ -266,9 +273,7 @@ export function App() {
       <section className="section">
         <h2 className="section-header">Examples</h2>
         {authState !== 'authenticated' ? (
-          <p className="empty-state">
-            Sign in first to view your user-scoped examples and use CRUD actions.
-          </p>
+          <p className="empty-state">{copy.signedOutExamples}</p>
         ) : examples.length === 0 ? (
           <p className="empty-state">No examples yet.</p>
         ) : (
