@@ -12,13 +12,45 @@ import { ApiExceptionFilter } from './common/api/http-exception.filter';
 import { ApiResponseInterceptor } from './common/api/response.interceptor';
 import { config } from './common/config';
 
+/**
+ * Helmet with a strict default CSP. For OIDC deployments the Auth0 SPA SDK
+ * must reach the Auth0 origin to exchange the authorization code for tokens
+ * (`connect-src`) and to run silent token renewal in a hidden iframe
+ * (`frame-src`), so the Auth0 issuer origin is added to those directives only
+ * when AUTH_PROVIDER=oidc. Non-OIDC deployments keep the strict same-origin
+ * default unchanged.
+ */
+function buildHelmet(): ReturnType<typeof helmet> {
+  if (config.authProvider !== 'oidc') {
+    return helmet();
+  }
+
+  let auth0Origin: string | undefined;
+  try {
+    auth0Origin = new URL(config.oidc.issuer).origin;
+  } catch {
+    auth0Origin = undefined;
+  }
+  const extra = auth0Origin ? [auth0Origin] : [];
+
+  return helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        'connect-src': ["'self'", ...extra],
+        'frame-src': ["'self'", ...extra],
+      },
+    },
+  });
+}
+
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.use(cookieParser(config.cookieSecret));
-  app.use(helmet());
+  app.use(buildHelmet());
   app.set('trust proxy', 1);
 
   app.enableCors({

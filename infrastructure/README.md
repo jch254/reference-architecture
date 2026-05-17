@@ -184,3 +184,9 @@ curl -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" https://<host>/api/auth/chec
 
 Confirm existing deployments (e.g. `https://reference-architecture.603.nz`)
 still report their own `/api/config` and behave unchanged.
+
+If the browser console shows a CSP error blocking
+`https://<auth0-domain>/oauth/token` (`connect-src`/`frame-src`), the
+deployment's `OIDC_ISSUER` is wrong or missing: the backend derives the
+allowed Auth0 origin from it and only opens CSP when `AUTH_PROVIDER=oidc`.
+Fix the issuer and redeploy rather than weakening CSP globally.
