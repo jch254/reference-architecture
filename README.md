@@ -345,6 +345,43 @@ Starts the app, DynamoDB Local, and creates the table automatically.
 - used as a reference architecture, not a product
 - copied and adapted for new apps
 
+### Scaffold decision gate
+
+This repo supports several tenant and auth profiles, but a generated app must
+**not** inherit all of them by default. Before scaffolding a new app, decide
+the deployment/auth profile explicitly. Treat this as a gate — not a default.
+
+Decide before scaffolding:
+
+1. **Tenant mode** — `fixed` | `subdomain`
+2. **Auth provider** — `none` | `internal_magic_link` | `oidc`
+3. **Frontend/mobile auth surface** — none | magic-link form | Auth0 SPA/mobile flow
+4. **User model needed immediately?** — yes | no
+
+Typical profiles:
+
+| Profile | Tenant mode | `AUTH_PROVIDER` | Auth surface | User model |
+|---|---|---|---|---|
+| Handscape-style single product | `fixed` (`APP_TENANT_ID=handscape-prod`/`-test`) | `oidc` | Auth0 SPA/mobile | yes |
+| Namaste/Lush-style | `subdomain` or `fixed` | `internal_magic_link` | email magic-link | maybe (product-dependent) |
+| Public/demo/simple tool | `fixed` | `none` | none | no |
+
+Rule for the scaffold prompt / generator:
+
+> Before scaffolding, choose the deployment/auth profile. Do not scaffold
+> unused auth flows. If `AUTH_PROVIDER=oidc`, include only the OIDC/Auth0
+> client flow and backend bearer-token assumptions. If
+> `AUTH_PROVIDER=internal_magic_link`, include only the magic-link UI/session
+> assumptions. If `AUTH_PROVIDER=none`, omit auth UI entirely.
+
+Concretely: a Handscape scaffold takes the `oidc` path
+([Provisioning a new Auth0/OIDC deployment](infrastructure/README.md#provisioning-a-new-auth0oidc-deployment))
+and must **not** carry magic-link UI, subdomain/workspace assumptions, or other
+flows just because Reference Architecture also supports them. The runtime
+`/api/config` selector means the frontend only activates the chosen provider,
+but the unused provider's UI/code should still be dropped from a generated app
+rather than shipped dormant.
+
 ## What this is (and isn’t)
 
 This is a baseline:
