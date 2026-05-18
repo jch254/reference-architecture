@@ -45,7 +45,7 @@ describe('OidcApp', () => {
     expect(screen.getByText(/local app user/i)).toBeInTheDocument();
   });
 
-  it('calls /api/me with a bearer token and shows logout when authenticated', async () => {
+  it('calls /api/me with a bearer token and shows local auth details when authenticated', async () => {
     mockUseAuth0.mockReturnValue({
       ...baseAuth0,
       isAuthenticated: true,
@@ -69,6 +69,39 @@ describe('OidcApp', () => {
     expect(headers.Authorization).toBe('Bearer access-token-xyz');
 
     expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument();
+    expect(await screen.findByText(/demo@example.com · oidc · u-1/i)).toBeInTheDocument();
+  });
+
+  it('shows the raw example response in OIDC mode', async () => {
+    mockUseAuth0.mockReturnValue({
+      ...baseAuth0,
+      isAuthenticated: true,
+      user: { email: 'demo@example.com' },
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/me') {
+          return jsonResponse({ data: { user: { userId: 'u-1', provider: 'oidc' } } });
+        }
+        return jsonResponse({ data: [] });
+      }),
+    );
+
+    render(<OidcApp />);
+
+    await screen.findByRole('button', { name: /show raw response/i });
+    fireEvent.click(screen.getByRole('button', { name: /show raw response/i }));
+
+    expect(screen.getByRole('button', { name: /hide raw response/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.classList.contains('raw-block') === true &&
+          element.textContent?.includes('"data": []') === true,
+      ),
+    ).toBeInTheDocument();
   });
 
   it('sends a bearer token on example create (CRUD) in OIDC mode', async () => {

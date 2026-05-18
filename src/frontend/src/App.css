@@ -107,13 +107,17 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
 }
 
 .auth-email {
+  min-width: 0;
   font-size: 0.813rem;
   color: var(--color-muted);
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 /* ── Auth form helpers ── */

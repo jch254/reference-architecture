@@ -13,6 +13,13 @@ interface Example {
   updatedAt: string;
 }
 
+interface LocalUser {
+  userId: string;
+  provider: string;
+  email?: string;
+  name?: string;
+}
+
 type AuthState = 'loading' | 'unauthenticated' | 'sent' | 'authenticated';
 
 export function App({
@@ -23,6 +30,7 @@ export function App({
   const copy = getDemoCopy(authProvider);
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [sessionEmail, setSessionEmail] = useState('');
+  const [localUser, setLocalUser] = useState<LocalUser | null>(null);
   const [email, setEmail] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -72,6 +80,7 @@ export function App({
     clearToken();
     setAuthState('unauthenticated');
     setSessionEmail('');
+    setLocalUser(null);
     setExamples([]);
     setRawResponse('');
   }, []);
@@ -99,15 +108,28 @@ export function App({
     }
   }, [handleApiError]);
 
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const { user } = await api.get<{ user: LocalUser }>('/api/me');
+      setLocalUser(user);
+      setError(null);
+    } catch (err) {
+      const msg = handleApiError(err, 'Failed to load your account');
+      if (msg) setError(msg);
+    }
+  }, [handleApiError]);
+
   useEffect(() => {
     if (authState === 'authenticated') {
+      fetchCurrentUser();
       fetchExamples();
     } else if (authState === 'unauthenticated' || authState === 'sent') {
+      setLocalUser(null);
       setExamples([]);
       setRawResponse('');
       setError(null);
     }
-  }, [authState, fetchExamples]);
+  }, [authState, fetchExamples, fetchCurrentUser]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -242,7 +264,15 @@ export function App({
       {authState === 'authenticated' && (
         <>
           <div className="auth-bar">
-            <span className="auth-email">{sessionEmail}</span>
+            <span className="auth-email">
+              {localUser?.email ?? sessionEmail}
+              {localUser && (
+                <>
+                  {' · '}
+                  {localUser.provider} · {localUser.userId}
+                </>
+              )}
+            </span>
             <button onClick={logout} className="btn btn-ghost">Sign Out</button>
           </div>
 

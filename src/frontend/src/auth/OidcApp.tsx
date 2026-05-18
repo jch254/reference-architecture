@@ -44,6 +44,8 @@ export function OidcApp() {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [showRaw, setShowRaw] = useState(false);
+  const [rawResponse, setRawResponse] = useState<string>('');
   const [error_, setError] = useState<string | null>(null);
   const bootstrappedRef = useRef(false);
 
@@ -74,6 +76,7 @@ export function OidcApp() {
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         ),
       );
+      setRawResponse(JSON.stringify({ data }, null, 2));
       setError(null);
     } catch (err) {
       setError(handleUnauthorized(err, 'Failed to fetch examples'));
@@ -102,6 +105,7 @@ export function OidcApp() {
     setTokenProvider(null);
     setLocalUser(null);
     setExamples([]);
+    setRawResponse('');
     logout({ logoutParams: { returnTo: window.location.origin } });
   }, [logout]);
 
@@ -299,6 +303,15 @@ export function OidcApp() {
               </div>
             )}
           </section>
+
+          <hr className="section-divider" />
+
+          <div className="raw-toggle">
+            <button onClick={() => setShowRaw(!showRaw)} className="btn btn-ghost">
+              {showRaw ? 'Hide' : 'Show'} Raw Response
+            </button>
+            {showRaw && <pre className="raw-block">{rawResponse}</pre>}
+          </div>
         </>
       )}
     </div>
