@@ -1,12 +1,9 @@
 export function AppFooter() {
   return (
     <footer className="app-footer">
-      <p>
-        © <a href="https://jch254.com/">Jordan Hornblow</a> 2026
-      </p>
-      <p>
-        <a href="https://github.com/jch254/reference-architecture">GitHub</a>
-      </p>
+      © <a href="https://jch254.com/" target="_blank" rel="noreferrer">Jordan Hornblow</a> 2026
+      {' · '}
+      <a href="https://github.com/jch254/reference-architecture" target="_blank" rel="noreferrer">GitHub</a>
     </footer>
   );
 }
