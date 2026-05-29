@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import { App } from './App';
 import { AppHeader } from './AppHeader';
+import { AppFooter } from './AppFooter';
 import { OidcApp } from './auth/OidcApp';
 import { fetchRuntimeConfig, type RuntimeConfig } from './runtime-config';
 
@@ -19,6 +20,7 @@ function Shell({
       <AppHeader authProvider={authProvider} />
       <hr className="section-divider" />
       {children}
+      <AppFooter />
     </div>
   );
 }
