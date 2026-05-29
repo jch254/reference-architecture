@@ -3,6 +3,7 @@ import './App.css';
 import type { RuntimeAuthProvider } from '../../shared/api-types';
 
 import { AppHeader } from './AppHeader';
+import { AppFooter } from './AppFooter';
 import { api, ApiError, clearToken } from './api/api-client';
 import { getDemoCopy } from './demo-copy';
 
@@ -207,6 +208,7 @@ export function App({
         <AppHeader authProvider={authProvider} />
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
+        <AppFooter />
       </div>
     );
   }
@@ -367,6 +369,8 @@ export function App({
           </div>
         </>
       )}
+
+      <AppFooter />
     </div>
   );
 }

@@ -76,6 +76,24 @@ body {
   color: var(--color-muted);
 }
 
+/* ── Footer ── */
+.app-footer {
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.813rem;
+}
+
+.app-footer a {
+  color: var(--color-text);
+  text-underline-offset: 2px;
+}
+
+.app-footer a:hover {
+  color: var(--color-muted);
+}
+
 /* ── Sections ── */
 .section {
   margin-bottom: var(--space-lg);
