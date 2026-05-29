@@ -86,6 +86,7 @@ body {
   border-top: 1px solid var(--color-border);
   color: var(--color-muted);
   font-size: 0.813rem;
+  text-align: center;
 }
 
 .app-footer a {
