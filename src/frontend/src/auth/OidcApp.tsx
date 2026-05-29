@@ -2,6 +2,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
 
 import { AppHeader } from '../AppHeader';
+import { AppFooter } from '../AppFooter';
 import { api, ApiError, setTokenProvider } from '../api/api-client';
 import { getDemoCopy } from '../demo-copy';
 
@@ -151,6 +152,7 @@ export function OidcApp() {
         <AppHeader authProvider="oidc" />
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
+        <AppFooter />
       </div>
     );
   }
@@ -314,6 +316,8 @@ export function OidcApp() {
           </div>
         </>
       )}
+
+      <AppFooter />
     </div>
   );
 }
