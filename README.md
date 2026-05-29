@@ -145,7 +145,7 @@ Backend authentication is provider-neutral in code, but each deployment chooses 
 | `OIDC_JWKS_URI` | no | derived | Optional explicit JWKS URI, e.g. `https://example.auth0.com/.well-known/jwks.json` |
 | `AUTH0_SPA_CLIENT_ID` | no | — | Public Auth0 SPA client id, surfaced to the browser via `GET /api/config` for the frontend Auth0 login flow. Not a secret; never the M2M client id or any client secret |
 
-Tenant resolution and auth provider selection are separate axes. For example, Handscape-style single-product apps should normally use `TENANT_RESOLUTION_MODE=fixed` with `AUTH_PROVIDER=oidc`. Namaste/Lush-style apps may use `AUTH_PROVIDER=internal_magic_link` with either tenant mode. Auth0-hosted passwordless, social, or passkey choices are external to this backend; the backend only validates OIDC JWTs.
+Tenant resolution and auth provider selection are separate axes. For example, single-product apps should normally use `TENANT_RESOLUTION_MODE=fixed` with `AUTH_PROVIDER=oidc`. Magic-link apps may use `AUTH_PROVIDER=internal_magic_link` with either tenant mode. Auth0-hosted passwordless, social, or passkey choices are external to this backend; the backend only validates OIDC JWTs.
 
 Protected backend routes use the global `AuthGuard`. Mark public endpoints with `@Public()`. Controllers can read the normalized principal with `@CurrentPrincipal()`, and services can use `AuthContext.getPrincipal()` or `AuthContext.requirePrincipal()`.
 
@@ -174,7 +174,7 @@ PK = TENANT#<tenantId>   SK = USER#<userId>
 PK = TENANT#<tenantId>   SK = USER_IDENTITY#<provider>#<sha256(providerSubject)>
 ```
 
-The identity lookup item makes `/api/me` deterministic without scanning a tenant. Handscape-style products should use `/api/me` as the starting point for user-owned data, then store future resources under the resolved tenant and local `userId`.
+The identity lookup item makes `/api/me` deterministic without scanning a tenant. Single-product apps should use `/api/me` as the starting point for user-owned data, then store future resources under the resolved tenant and local `userId`.
 
 ### User-owned example resources
 
@@ -195,7 +195,7 @@ PK = TENANT#<tenantId>   SK = USER#<userId>#EXAMPLE#<exampleId>
 
 Listing uses `PK = TENANT#<tenantId>` plus `begins_with(SK, USER#<userId>#EXAMPLE#)`, so it does not scan all tenant examples. Read, update, and delete build the same key from the authenticated local user, so another user in the same tenant receives `404` for someone else's example. The same external provider subject in another tenant maps to a different local user and cannot access the first tenant's data.
 
-This is the same pattern Handscape-style apps should use for saved protocols, favourites, notes, and history: tenant id comes from the deployment/request, ownership comes from the local user model, and email/provider subject remain identity inputs rather than domain owner ids.
+This is the same pattern single-product apps should use for saved domain records, favourites, notes, and history: tenant id comes from the deployment/request, ownership comes from the local user model, and email/provider subject remain identity inputs rather than domain owner ids.
 
 ### Frontend authentication
 
@@ -362,8 +362,8 @@ Typical profiles:
 
 | Profile | Tenant mode | `AUTH_PROVIDER` | Auth surface | User model |
 |---|---|---|---|---|
-| Handscape-style single product | `fixed` (`APP_TENANT_ID=handscape-prod`/`-test`) | `oidc` | Auth0 SPA/mobile | yes |
-| Namaste/Lush-style | `subdomain` or `fixed` | `internal_magic_link` | email magic-link | maybe (product-dependent) |
+| Single product | `fixed` (`APP_TENANT_ID=<app>-prod`/`-test`) | `oidc` | Auth0 SPA/mobile | yes |
+| Magic-link / workspace | `subdomain` or `fixed` | `internal_magic_link` | email magic-link | maybe (product-dependent) |
 | Public/demo/simple tool | `fixed` | `none` | none | no |
 
 Rule for the scaffold prompt / generator:
@@ -374,7 +374,7 @@ Rule for the scaffold prompt / generator:
 > `AUTH_PROVIDER=internal_magic_link`, include only the magic-link UI/session
 > assumptions. If `AUTH_PROVIDER=none`, omit auth UI entirely.
 
-Concretely: a Handscape scaffold takes the `oidc` path
+Concretely: a single-product scaffold takes the `oidc` path
 ([Provisioning a new Auth0/OIDC deployment](infrastructure/README.md#provisioning-a-new-auth0oidc-deployment))
 and must **not** carry magic-link UI, subdomain/workspace assumptions, or other
 flows just because Reference Architecture also supports them. The runtime
