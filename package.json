@@ -2,6 +2,7 @@
   "name": "reference-architecture",
   "version": "1.0.0",
   "description": "Minimal reference architecture",
+  "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",
