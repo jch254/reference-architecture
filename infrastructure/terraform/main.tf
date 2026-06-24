@@ -26,14 +26,14 @@ data "aws_subnets" "public" {
 
 # ECR Repository
 module "ecr_repository" {
-  source = "github.com/jch254/terraform-modules//ecr-repository?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//ecr-repository?ref=1.19.1"
 
   name = var.name
 }
 
 # ECS HTTP runtime
 module "ecs_http_service" {
-  source = "github.com/jch254/terraform-modules//ecs-http-service?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//ecs-http-service?ref=1.19.1"
 
   name        = var.name
   environment = var.environment
@@ -154,7 +154,7 @@ module "ecs_http_service" {
 
 # ACM Certificate for API Gateway custom domain
 module "acm_certificate" {
-  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.19.1"
 
   domain_name               = var.dns_name
   subject_alternative_names = []
@@ -165,7 +165,7 @@ module "acm_certificate" {
 
 # API Gateway Custom Domain
 module "api_gateway_custom_domain" {
-  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.19.1"
 
   domain_name     = var.dns_name
   certificate_arn = module.acm_certificate.arn
@@ -178,14 +178,14 @@ module "api_gateway_custom_domain" {
 # DynamoDB Table — one physical table per deployment/product/environment.
 # Runtime tenant resolution only chooses the TENANT# key prefix inside this table.
 module "dynamodb_single_table" {
-  source = "github.com/jch254/terraform-modules//dynamodb-single-table?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//dynamodb-single-table?ref=1.19.1"
 
   name = "${var.name}-entities"
 }
 
 # IAM — ECS Runtime Roles
 module "app_runtime_iam" {
-  source = "github.com/jch254/terraform-modules//app-runtime-iam?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//app-runtime-iam?ref=1.19.1"
 
   name        = var.name
   environment = var.environment
@@ -201,7 +201,7 @@ module "app_runtime_iam" {
 
 # IAM — CodeBuild Terraform deploy role
 module "codebuild_terraform_role" {
-  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.19.1"
 
   name        = var.name
   environment = var.environment
@@ -240,7 +240,7 @@ module "codebuild_terraform_role" {
 
 # CodeBuild Project
 module "codebuild_project" {
-  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.19.1"
 
   name                               = var.name
   description                        = "Build project for ${var.name}"
@@ -283,14 +283,14 @@ module "codebuild_project" {
 }
 
 module "cookie_secret" {
-  source = "github.com/jch254/terraform-modules//ssm-parameter-placeholder?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//ssm-parameter-placeholder?ref=1.19.1"
 
   name        = "/${var.name}/cookie-secret"
   description = "Secret key for cookie signing"
 }
 
 module "resend_api_key" {
-  source = "github.com/jch254/terraform-modules//ssm-parameter-placeholder?ref=1.19.0"
+  source = "github.com/jch254/terraform-modules//ssm-parameter-placeholder?ref=1.19.1"
 
   name        = "/${var.name}/resend-api-key"
   description = "Resend API key for sending transactional emails"

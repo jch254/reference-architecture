@@ -43,7 +43,7 @@ proxy integration + stage + permission + log group, emitting the same
 `lambda-runtime-iam` (Lambda execution role) — and reuses the existing
 ECR / DynamoDB / ACM / API-Gateway-custom-domain / CodeBuild / SSM modules
 unchanged. The `lambda-function` module in that repo is zip-based and is not used
-here. All modules are pinned to `?ref=1.19.0`.
+here. All modules are pinned to `?ref=1.19.1`.
 
 ## Bootstrap
 
