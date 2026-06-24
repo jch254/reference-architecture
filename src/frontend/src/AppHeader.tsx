@@ -1,6 +1,9 @@
+import { Fragment } from 'react';
+
 import type { RuntimeAuthProvider, RuntimeCompute } from '../../shared/api-types';
 
 import { getDemoCopy } from './demo-copy';
+import { getAlternateDeployments } from './deployments';
 
 const COMPUTE_META: Record<RuntimeCompute, { label: string; color: string }> = {
   lambda: { label: 'AWS Lambda', color: '#ED7100' },
@@ -17,6 +20,7 @@ export function AppHeader({
 }) {
   const copy = getDemoCopy(authProvider);
   const computeMeta = compute ? COMPUTE_META[compute] : null;
+  const alternateDeployments = getAlternateDeployments(authProvider, compute);
 
   return (
     <header className="app-header">
@@ -32,10 +36,18 @@ export function AppHeader({
           Running on <strong>{computeMeta.label}</strong>
         </p>
       )}
-      <p className="deploy-switcher">
-        {copy.alternateDeploy.description}{' '}
-        <a href={copy.alternateDeploy.href}>{copy.alternateDeploy.label}</a>.
-      </p>
+      {alternateDeployments.length > 0 && (
+        <p className="deploy-switcher">
+          {copy.deployIntro} Compare{' '}
+          {alternateDeployments.map((deployment, index) => (
+            <Fragment key={deployment.id}>
+              {index > 0 && (index === alternateDeployments.length - 1 ? ' or ' : ', ')}
+              <a href={deployment.href}>{deployment.label}</a>
+            </Fragment>
+          ))}
+          .
+        </p>
+      )}
     </header>
   );
 }

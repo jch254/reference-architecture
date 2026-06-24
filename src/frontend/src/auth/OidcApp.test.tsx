@@ -35,11 +35,15 @@ describe('OidcApp', () => {
 
   it('renders a login button when unauthenticated', () => {
     mockUseAuth0.mockReturnValue({ ...baseAuth0, isAuthenticated: false });
-    render(<OidcApp />);
+    render(<OidcApp compute="ecs" />);
     expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /compare the magic-link deployment/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /magic-link on ECS Fargate/i })).toHaveAttribute(
       'href',
       'https://reference-architecture.603.nz',
+    );
+    expect(screen.getByRole('link', { name: /magic-link on AWS Lambda/i })).toHaveAttribute(
+      'href',
+      'https://reference-architecture-lambda.603.nz',
     );
     expect(screen.getByRole('button', { name: /log in with auth0/i })).toBeInTheDocument();
     expect(screen.getByText(/local app user/i)).toBeInTheDocument();

@@ -52,9 +52,17 @@ describe('Root auth-provider selection', () => {
     expect(screen.getByRole('heading', { name: 'Reference Architecture Demo' })).toBeInTheDocument();
     // Compute badge reflects the runtime config's detected backend.
     expect(screen.getByText('AWS Lambda')).toBeInTheDocument();
+    // The Lambda magic-link deployment links to the other two live deployments,
+    // not itself.
     expect(
-      screen.getByRole('link', { name: /compare the auth0\/oidc deployment/i }),
+      screen.getByRole('link', { name: /magic-link on ECS Fargate/i }),
+    ).toHaveAttribute('href', 'https://reference-architecture.603.nz');
+    expect(
+      screen.getByRole('link', { name: /Auth0\/OIDC on ECS Fargate/i }),
     ).toHaveAttribute('href', 'https://reference-architecture-auth0.603.nz');
+    expect(
+      screen.queryByRole('link', { name: /magic-link on AWS Lambda/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();
     expect(mockUseAuth0).not.toHaveBeenCalled();
   });
@@ -87,8 +95,12 @@ describe('Root auth-provider selection', () => {
     );
     expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
     expect(screen.getByText('ECS Fargate')).toBeInTheDocument();
+    // The Fargate Auth0 deployment links to the two magic-link deployments.
     expect(
-      screen.getByRole('link', { name: /compare the magic-link deployment/i }),
+      screen.getByRole('link', { name: /magic-link on ECS Fargate/i }),
     ).toHaveAttribute('href', 'https://reference-architecture.603.nz');
+    expect(
+      screen.getByRole('link', { name: /magic-link on AWS Lambda/i }),
+    ).toHaveAttribute('href', 'https://reference-architecture-lambda.603.nz');
   });
 });

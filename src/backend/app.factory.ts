@@ -3,7 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import { join } from 'path';
+import { join, sep } from 'path';
 
 import { AppModule } from './app.module';
 import { buildCorsOrigin } from './common/api/cors';
@@ -77,9 +77,26 @@ export async function createApp(): Promise<NestExpressApplication> {
   app.useGlobalInterceptors(new ApiResponseInterceptor());
   app.useGlobalFilters(new ApiExceptionFilter());
 
-  // Serve frontend static files
+  // Serve frontend static files.
+  //
+  // Vite content-hashes everything under /assets (e.g. index-ycEsocqM.js), so
+  // those are immutable — a content change produces a new filename — and can be
+  // cached forever. index.html is the unhashed entrypoint referencing them, so
+  // it must always be revalidated (no-cache) or clients would pin stale asset
+  // URLs after a deploy. With these headers the Cloudflare edge serves static
+  // traffic without revalidating hashed assets against the origin (ECS/Lambda).
   const frontendPath = join(__dirname, '..', '..', 'frontend', 'dist');
-  app.use(express.static(frontendPath));
+  app.use(
+    express.static(frontendPath, {
+      setHeaders: (res: Response, filePath: string) => {
+        if (filePath.includes(`${sep}assets${sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }),
+  );
 
   // Deep-link redirect page for magic-link auth
   app.use('/auth/verify', (req: Request, res: Response, next: NextFunction) => {
@@ -140,7 +157,10 @@ export async function createApp(): Promise<NestExpressApplication> {
     if (req.path.startsWith('/api')) {
       return next();
     }
-    res.sendFile(join(frontendPath, 'index.html'));
+    res.sendFile(join(frontendPath, 'index.html'), {
+      cacheControl: false,
+      headers: { 'Cache-Control': 'no-cache' },
+    });
   });
 
   return app;
