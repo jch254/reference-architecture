@@ -1,0 +1,91 @@
+version: 0.2
+
+# Lambda (container image) deployment pipeline. Mirrors buildspec.yml but builds
+# Dockerfile.lambda, applies the infrastructure/terraform-lambda root, and waits
+# on the Lambda function update instead of ECS service stabilisation. The
+# Cloudflare DNS layer is shared/compute-agnostic and reused unchanged.
+
+env:
+  variables:
+    REMOTE_STATE_BUCKET: "jch254-terraform-remote-state"
+  exported-variables:
+    - COMMIT_MESSAGE
+    - COMMIT_SHA
+
+phases:
+  install:
+    commands:
+      - |
+        dockerd \
+          --host=unix:///var/run/docker.sock \
+          --storage-driver=vfs \
+          --data-root=/tmp/docker \
+          > /tmp/dockerd.log 2>&1 &
+      - |
+        for i in $(seq 1 20); do
+          if docker info > /dev/null 2>&1; then
+            echo "Docker is ready"
+            break
+          fi
+          echo "Waiting for Docker ($i)..."
+          sleep 2
+        done
+      - docker info || (echo "Docker failed to start" && cat /tmp/dockerd.log && exit 1)
+      - npm install -g pnpm@9
+      - pnpm install --frozen-lockfile
+      - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:8}
+      - chmod +x infrastructure/terraform-lambda/deploy-infrastructure.bash
+      - chmod +x infrastructure/terraform/cloudflare/deploy-cloudflare.bash
+
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - export COMMIT_MESSAGE="$(git log -1 --pretty=%s 2>/dev/null || echo '')"
+      - export COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-$CODEBUILD_SOURCE_VERSION}"
+      - pnpm run build
+      - echo Building Lambda container image...
+      - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG"
+      - docker build -f Dockerfile.lambda -t $IMAGE_URI .
+      - echo Pushing Lambda container image...
+      - docker push $IMAGE_URI
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - ./infrastructure/terraform-lambda/deploy-infrastructure.bash
+      - echo Waiting for Lambda function to finish updating...
+      - aws lambda wait function-updated --function-name $FUNCTION_NAME
+      - echo AWS deployment completed
+      - |
+        export CLOUDFLARE_API_TOKEN="$(
+          aws ssm get-parameter \
+            --name "${CLOUDFLARE_API_TOKEN_PARAMETER_NAME:-/reference-architecture/cloudflare-api-token}" \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text
+        )"
+      - ./infrastructure/terraform/cloudflare/deploy-cloudflare.bash
+      - echo Deployment completed
+      - |
+        if [ "${RUN_SYSTEM_VALIDATION:-true}" = "true" ]; then
+          echo Running system validation...
+          export COOKIE_SECRET="$(
+            aws ssm get-parameter \
+              --name "${COOKIE_SECRET_PARAMETER_NAME:-/reference-architecture-lambda/cookie-secret}" \
+              --with-decryption \
+              --query Parameter.Value \
+              --output text
+          )"
+          BASE_URL="${VALIDATION_BASE_URL:-https://reference-architecture-lambda.603.nz}" pnpm run validate
+        else
+          echo "System validation skipped for this deployment"
+        fi
+
+cache:
+  paths:
+    - "/root/.terraform.d/plugin-cache/**/*"

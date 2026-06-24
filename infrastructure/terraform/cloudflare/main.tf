@@ -28,7 +28,7 @@ locals {
 
 # ACM certificate DNS validation
 module "acm_validation_records" {
-  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.15.0"
+  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.19.0"
 
   zone_id = data.cloudflare_zone.zone.id
   records = {
@@ -42,7 +42,7 @@ module "acm_validation_records" {
 }
 
 module "api_dns" {
-  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.15.0"
+  source = "github.com/jch254/terraform-modules//cloudflare-dns-records?ref=1.19.0"
 
   zone_id = data.cloudflare_zone.zone.id
   records = local.api_gateway_custom_domain_target == null ? {} : {

@@ -1,0 +1,232 @@
+variable "region" {
+  description = "AWS region to deploy to"
+  type        = string
+}
+
+variable "name" {
+  description = "Deployment name used in AWS resource names. Include the product/environment boundary here (for example product-prod or product-test); the DynamoDB table is derived from this name."
+  type        = string
+}
+
+variable "environment" {
+  description = "Environment tag for this deployment (e.g. prod). Physical isolation still comes from the deployment/table identity, not tenant resolution mode."
+  type        = string
+  default     = "prod"
+}
+
+variable "tenant_resolution_mode" {
+  description = "Runtime tenant resolution strategy: fixed resolves every request to app_tenant_id, subdomain resolves from Host. This does not choose the DynamoDB table."
+  type        = string
+  default     = "subdomain"
+
+  validation {
+    condition     = contains(["fixed", "subdomain"], var.tenant_resolution_mode)
+    error_message = "tenant_resolution_mode must be either fixed or subdomain."
+  }
+}
+
+variable "app_tenant_id" {
+  description = "Fixed runtime tenant id for this deployed app/environment. Required when tenant_resolution_mode is fixed; not a substitute for a deployment-specific DynamoDB table."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.app_tenant_id == null || length(trimspace(var.app_tenant_id)) > 0
+    error_message = "app_tenant_id must be null or a non-empty string."
+  }
+}
+
+variable "auth_provider" {
+  description = "Primary backend auth provider for this deployment: none, internal_magic_link, or oidc. Dual-provider mode is intentionally not supported."
+  type        = string
+  default     = "internal_magic_link"
+
+  validation {
+    condition     = contains(["none", "internal_magic_link", "oidc"], var.auth_provider)
+    error_message = "auth_provider must be one of: none, internal_magic_link, oidc."
+  }
+}
+
+variable "oidc_issuer" {
+  description = "OIDC issuer URL, for example https://example.auth0.com/. Required by the backend when auth_provider is oidc."
+  type        = string
+  default     = null
+}
+
+variable "oidc_audience" {
+  description = "Expected OIDC access-token audience. Required by the backend when auth_provider is oidc."
+  type        = string
+  default     = null
+}
+
+variable "oidc_jwks_uri" {
+  description = "Optional explicit JWKS URI. If omitted, the backend derives it from oidc_issuer."
+  type        = string
+  default     = null
+}
+
+variable "auth0_spa_client_id" {
+  description = "Auth0 SPA application client id, surfaced to the frontend via the public /api/config endpoint when auth_provider is oidc. This is a public value (not a secret); do not use the M2M client id or any client secret here."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.auth0_spa_client_id == null || length(trimspace(var.auth0_spa_client_id)) > 0
+    error_message = "auth0_spa_client_id must be null or a non-empty string."
+  }
+}
+
+variable "email_mode" {
+  description = "Optional EMAIL_MODE for the app: live, redirect, or noop. Leave null to use the app default (live). Use noop to deploy without a real Resend key."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.email_mode == null || contains(["live", "redirect", "noop"], var.email_mode)
+    error_message = "email_mode must be null or one of: live, redirect, noop."
+  }
+}
+
+variable "image_tag" {
+  description = "Container image tag to deploy. Must already exist in ECR before the Lambda function is created/updated."
+  type        = string
+  default     = "latest"
+}
+
+variable "lambda_memory_size" {
+  description = "Lambda function memory in MB"
+  type        = number
+  default     = 512
+}
+
+variable "lambda_timeout" {
+  description = "Lambda function timeout in seconds"
+  type        = number
+  default     = 30
+}
+
+variable "lambda_architecture" {
+  description = "Lambda instruction set architecture: x86_64 or arm64. Must match the built container image."
+  type        = string
+  default     = "x86_64"
+
+  validation {
+    condition     = contains(["x86_64", "arm64"], var.lambda_architecture)
+    error_message = "lambda_architecture must be either x86_64 or arm64."
+  }
+}
+
+variable "build_docker_image" {
+  description = "Docker image to use as CodeBuild build environment"
+  type        = string
+}
+
+variable "build_docker_tag" {
+  description = "Docker image tag to use as CodeBuild build environment"
+  type        = string
+}
+
+variable "source_type" {
+  description = "Type of repository that contains the source code"
+  type        = string
+  default     = "GITHUB"
+}
+
+variable "source_location" {
+  description = "Location of the source code repository"
+  type        = string
+}
+
+variable "buildspec" {
+  description = "Path to the buildspec file"
+  type        = string
+  default     = "buildspec-lambda.yml"
+}
+
+variable "cache_bucket" {
+  description = "S3 bucket/prefix for CodeBuild cache"
+  type        = string
+}
+
+variable "build_compute_type" {
+  description = "CodeBuild compute type"
+  type        = string
+  default     = "BUILD_GENERAL1_SMALL"
+}
+
+variable "build_notifier_region" {
+  description = "AWS region where shared-platform deploys the build notification formatter Lambda. Defaults to region."
+  type        = string
+  default     = null
+}
+
+variable "build_notifier_lambda_function_name" {
+  description = "Name of the shared-platform build notification formatter Lambda."
+  type        = string
+  default     = "shared-platform-build-notification-formatter"
+}
+
+variable "terraform_state_key" {
+  description = "Remote state key used by the deployment pipeline. Defaults to name so separate deployment identities keep separate Terraform state."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.terraform_state_key == null || length(trimspace(var.terraform_state_key)) > 0
+    error_message = "terraform_state_key must be null or a non-empty string."
+  }
+}
+
+variable "terraform_var_file" {
+  description = "Terraform variable file used by the deployment pipeline."
+  type        = string
+  default     = "environments/prod-lambda/terraform.tfvars"
+
+  validation {
+    condition     = length(trimspace(var.terraform_var_file)) > 0
+    error_message = "terraform_var_file must be a non-empty string."
+  }
+}
+
+variable "validation_base_url" {
+  description = "Base URL used by the post-deploy system validation. Defaults to https://dns_name."
+  type        = string
+  default     = null
+}
+
+variable "run_system_validation" {
+  description = "Whether CodeBuild runs system validation after deployment. OIDC validation can run in partial mode without a bearer token, but full auth validation requires AUTH_BEARER_TOKEN."
+  type        = bool
+  default     = true
+}
+
+variable "cloudflare_api_token_ssm_parameter_name" {
+  description = "SSM parameter name containing the Cloudflare API token used by the deployment pipeline."
+  type        = string
+  default     = "/reference-architecture/cloudflare-api-token"
+
+  validation {
+    condition     = length(trimspace(var.cloudflare_api_token_ssm_parameter_name)) > 0
+    error_message = "cloudflare_api_token_ssm_parameter_name must be a non-empty string."
+  }
+}
+
+variable "cloudflare_domain" {
+  description = "Cloudflare zone name (e.g. 603.nz)"
+  type        = string
+}
+
+variable "cloudflare_subdomain" {
+  description = "Subdomain for the application (e.g. reference-architecture-lambda)"
+  type        = string
+}
+
+variable "dns_name" {
+  description = "Full domain name for the application (e.g. reference-architecture-lambda.603.nz)"
+  type        = string
+}
+
+variable "resend_from_email" {
+  description = "From address used when sending transactional emails via Resend"
+  type        = string
+}

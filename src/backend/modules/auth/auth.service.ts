@@ -36,9 +36,21 @@ interface TenantAdminRecord {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly tableName = config.dynamoDbTable;
-  private readonly resend = new Resend(config.resendApiKey);
+  private resendClient: Resend | null = null;
 
   constructor(private readonly dynamoDb: DynamoDbService) {}
+
+  /**
+   * Resend client, constructed lazily so the service can boot in modes that do
+   * not send email. `EMAIL_MODE=noop` forces an empty API key (see common/config),
+   * and `new Resend('')` throws, so the client is only built when a mode that
+   * actually sends a message (live/redirect) reaches this point — and config
+   * guarantees a non-empty key in those modes.
+   */
+  private getResend(): Resend {
+    this.resendClient ??= new Resend(config.resendApiKey);
+    return this.resendClient;
+  }
 
   isInternalMagicLinkAuthEnabled(): boolean {
     return config.authProvider === 'internal_magic_link';
@@ -278,7 +290,7 @@ export class AuthService {
       case 'redirect': {
         const redirectTo = config.resendRedirectEmail || email;
         try {
-          const { error } = await this.resend.emails.send({
+          const { error } = await this.getResend().emails.send({
             from: config.resendFromEmail,
             to: redirectTo,
             subject: `[REDIRECT] Sign-in link for ${email}`,
@@ -296,7 +308,7 @@ export class AuthService {
       case 'live':
       default:
         try {
-          const { error } = await this.resend.emails.send({
+          const { error } = await this.getResend().emails.send({
             from: config.resendFromEmail,
             to: email,
             subject: 'Your sign-in link',

@@ -6,8 +6,26 @@ Two deployment layers, applied sequentially via CodeBuild.
 
 ```
 /infrastructure/terraform             → AWS (ECS, API Gateway, DynamoDB, ECR)
-/infrastructure/terraform/cloudflare  → DNS (Cloudflare CNAME → API Gateway)
+/infrastructure/terraform-lambda      → AWS (Lambda container image, API Gateway, DynamoDB, ECR)
+/infrastructure/terraform/cloudflare  → DNS (Cloudflare CNAME → API Gateway), shared by both
 ```
+
+## Compute variants
+
+The app ships two interchangeable compute backends behind the same API Gateway +
+Cloudflare front door:
+
+| Variant | Root | Compute | Buildspec |
+| --- | --- | --- | --- |
+| ECS Fargate (default) | `terraform` | Container on ECS via VPC Link + Cloud Map | `buildspec.yml` |
+| Lambda (container image) | `terraform-lambda` | `package_type = "Image"` Lambda via API Gateway proxy | `buildspec-lambda.yml` |
+
+Both roots emit the same `api_gateway_custom_domain_target` and
+`acm_certificate_validation` outputs, so the single `terraform/cloudflare` DNS
+root is **shared** — each deployment just points it at its own AWS state key
+(`<name>-cloudflare`). See [terraform-lambda/README.md](terraform-lambda/README.md)
+for the Lambda architecture and bootstrap (note: a container-image Lambda can't be
+created until its image exists in ECR, so its first deploy stages an image push).
 
 ## Flow
 
@@ -37,6 +55,7 @@ See each layer's README for specifics.
 | --- | --- | --- | --- | --- |
 | `reference-architecture.603.nz` | Existing/default demo | `reference-architecture` | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture-cloudflare` |
 | `reference-architecture-auth0.603.nz` | Fixed-tenant Auth0/OIDC backend demo | `reference-architecture-auth0` | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0-cloudflare` |
+| `reference-architecture-lambda.603.nz` | Lambda (container image) compute demo | `reference-architecture-lambda` | `infrastructure/terraform-lambda/environments/prod-lambda/terraform.tfvars` | `reference-architecture-lambda-cloudflare` |
 
 The Auth0 demo is a separate deployment identity, not a rename of the existing demo. It uses the same Terraform roots and modules with a different state key, resource name prefix, DNS name, and DynamoDB table. Tenant resolution and auth provider selection remain separate axes:
 
@@ -147,10 +166,11 @@ be healthy until they hold real values:
 
 - `/<app>/cookie-secret` — **required for every deployment** (used to sign
   cookies even in OIDC mode). Generate with `openssl rand -hex 32`.
-- `/<app>/resend-api-key` — required only if the deployment sends email.
-  Pure Auth0/OIDC deployments do not send magic-link email; set this to any
-  non-empty placeholder and set `EMAIL_MODE=noop` for that deployment, or
-  supply a real Resend key if email is needed.
+- `/<app>/resend-api-key` — needed only when the deployment sends magic-link
+  email. The Resend client is constructed lazily on first send, so a pure
+  Auth0/OIDC deployment never uses it: set this to any non-empty placeholder
+  (the value is unused when no email is sent), or supply a real Resend key if
+  email is needed.
 
 Put values in with `aws ssm put-parameter --overwrite --type SecureString`,
 then force a new ECS deployment so tasks pick them up. No Auth0 secret is

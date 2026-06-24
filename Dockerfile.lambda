@@ -1,0 +1,47 @@
+# Lambda (container image) build of the same app the ECS Dockerfile ships.
+#
+# The only differences from ./Dockerfile are the runtime base image (the AWS
+# Lambda Node.js base, which bundles the Runtime Interface Client + Emulator)
+# and the entrypoint: instead of listening on a port, Lambda invokes the
+# exported handler in dist/backend/lambda.js. App wiring is identical because
+# both entrypoints share createApp() (src/backend/app.factory.ts).
+
+FROM public.ecr.aws/docker/library/node:24-alpine AS builder
+
+WORKDIR /app
+
+RUN npm install -g pnpm@9
+
+COPY package.json pnpm-lock.yaml ./
+
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+RUN pnpm run build
+
+# Build frontend
+WORKDIR /app/src/frontend
+
+RUN pnpm install --frozen-lockfile
+
+RUN pnpm run build
+
+# Lambda runtime image. LAMBDA_TASK_ROOT defaults to /var/task; the handler path
+# and the static frontend path (join(__dirname, '..', '..', 'frontend', 'dist'))
+# are both resolved relative to it.
+FROM public.ecr.aws/lambda/nodejs:24 AS production
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+RUN npm install -g pnpm@9
+
+COPY package.json pnpm-lock.yaml ./
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/frontend/dist ./frontend/dist
+
+# <file-without-ext>.<exported-handler>, resolved under LAMBDA_TASK_ROOT.
+CMD ["dist/backend/lambda.handler"]

@@ -1,7 +1,3 @@
-data "aws_vpc" "existing" {
-  id = var.vpc_id
-}
-
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -10,18 +6,31 @@ locals {
   terraform_state_key                = coalesce(var.terraform_state_key, var.name)
   validation_base_url                = coalesce(var.validation_base_url, "https://${var.dns_name}")
   cloudflare_api_token_parameter_arn = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${trimprefix(var.cloudflare_api_token_ssm_parameter_name, "/")}"
-}
+  app_lambda_function_arn            = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${var.name}"
 
-data "aws_subnets" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [var.vpc_id]
-  }
-
-  filter {
-    name   = "map-public-ip-on-launch"
-    values = ["true"]
-  }
+  # Lambda env vars. Same runtime config the ECS task sets, with two differences:
+  # - AWS_REGION is intentionally omitted: it is a reserved Lambda env key (the
+  #   runtime injects it automatically, and the app reads it back via ConfigService).
+  # - COOKIE_SECRET / RESEND_API_KEY are NOT passed here; the handler fetches them
+  #   from SSM by name at cold start so secrets stay out of the function config.
+  app_environment_variables = merge(
+    {
+      PORT                          = "3000"
+      DYNAMODB_TABLE                = module.dynamodb_single_table.table_name
+      TENANT_RESOLUTION_MODE        = var.tenant_resolution_mode
+      BASE_DOMAIN                   = var.tenant_resolution_mode == "fixed" ? var.dns_name : var.cloudflare_domain
+      RESEND_FROM_EMAIL             = var.resend_from_email
+      AUTH_PROVIDER                 = var.auth_provider
+      COOKIE_SECRET_PARAMETER_NAME  = module.cookie_secret.name
+      RESEND_API_KEY_PARAMETER_NAME = module.resend_api_key.name
+    },
+    var.email_mode == null ? {} : { EMAIL_MODE = var.email_mode },
+    var.app_tenant_id == null ? {} : { APP_TENANT_ID = var.app_tenant_id },
+    var.oidc_issuer == null ? {} : { OIDC_ISSUER = var.oidc_issuer },
+    var.oidc_audience == null ? {} : { OIDC_AUDIENCE = var.oidc_audience },
+    var.oidc_jwks_uri == null ? {} : { OIDC_JWKS_URI = var.oidc_jwks_uri },
+    var.auth0_spa_client_id == null ? {} : { AUTH0_SPA_CLIENT_ID = var.auth0_spa_client_id },
+  )
 }
 
 # ECR Repository
@@ -29,150 +38,6 @@ module "ecr_repository" {
   source = "github.com/jch254/terraform-modules//ecr-repository?ref=1.19.0"
 
   name = var.name
-}
-
-# ECS HTTP runtime
-module "ecs_http_service" {
-  source = "github.com/jch254/terraform-modules//ecs-http-service?ref=1.19.0"
-
-  name        = var.name
-  environment = var.environment
-  vpc_id      = data.aws_vpc.existing.id
-  subnet_ids  = data.aws_subnets.public.ids
-
-  image              = "${module.ecr_repository.repository_url}:${var.image_tag}"
-  cpu                = var.container_cpu
-  memory             = var.container_memory
-  execution_role_arn = module.app_runtime_iam.execution_role_arn
-  task_role_arn      = module.app_runtime_iam.task_role_arn
-
-  container_port        = 3000
-  host_port             = 3000
-  create_log_group      = true
-  log_group_name        = "/ecs/${var.name}"
-  log_retention_in_days = 7
-  log_region            = var.region
-  log_stream_prefix     = "ecs"
-
-  environment_variables = concat(
-    [
-      {
-        name  = "PORT"
-        value = "3000"
-      },
-      {
-        name  = "DYNAMODB_TABLE"
-        value = module.dynamodb_single_table.table_name
-      },
-      {
-        name  = "TENANT_RESOLUTION_MODE"
-        value = var.tenant_resolution_mode
-      },
-      {
-        name  = "AWS_REGION"
-        value = var.region
-      },
-      {
-        name  = "BASE_DOMAIN"
-        value = var.tenant_resolution_mode == "fixed" ? var.dns_name : var.cloudflare_domain
-      },
-      {
-        name  = "RESEND_FROM_EMAIL"
-        value = var.resend_from_email
-      },
-      {
-        name  = "AUTH_PROVIDER"
-        value = var.auth_provider
-      }
-    ],
-    var.app_tenant_id == null ? [] : [
-      {
-        name  = "APP_TENANT_ID"
-        value = var.app_tenant_id
-      }
-    ],
-    var.oidc_issuer == null ? [] : [
-      {
-        name  = "OIDC_ISSUER"
-        value = var.oidc_issuer
-      }
-    ],
-    var.oidc_audience == null ? [] : [
-      {
-        name  = "OIDC_AUDIENCE"
-        value = var.oidc_audience
-      }
-    ],
-    var.oidc_jwks_uri == null ? [] : [
-      {
-        name  = "OIDC_JWKS_URI"
-        value = var.oidc_jwks_uri
-      }
-    ],
-    var.auth0_spa_client_id == null ? [] : [
-      {
-        name  = "AUTH0_SPA_CLIENT_ID"
-        value = var.auth0_spa_client_id
-      }
-    ],
-  )
-
-  secrets = [
-    {
-      name      = "COOKIE_SECRET"
-      valueFrom = module.cookie_secret.arn
-    },
-    {
-      name      = "RESEND_API_KEY"
-      valueFrom = module.resend_api_key.arn
-    }
-  ]
-
-  health_check = {
-    command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
-    interval    = 15
-    timeout     = 5
-    retries     = 3
-    startPeriod = 60
-  }
-
-  essential = true
-
-  assign_public_ip                    = true
-  desired_count                       = 1
-  deployment_minimum_healthy_percent  = 100
-  deployment_maximum_percent          = 200
-  health_check_grace_period_seconds   = 60
-  deployment_circuit_breaker_enable   = true
-  deployment_circuit_breaker_rollback = true
-  container_insights                  = "disabled"
-  operating_system_family             = "LINUX"
-  cpu_architecture                    = "X86_64"
-
-  depends_on = [module.app_runtime_iam]
-}
-
-# ACM Certificate for API Gateway custom domain
-module "acm_certificate" {
-  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.19.0"
-
-  domain_name               = var.dns_name
-  subject_alternative_names = []
-  validation_method         = "DNS"
-}
-
-# Note: Certificate validation is handled manually via Cloudflare DNS
-
-# API Gateway Custom Domain
-module "api_gateway_custom_domain" {
-  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.19.0"
-
-  domain_name     = var.dns_name
-  certificate_arn = module.acm_certificate.arn
-  api_id          = module.ecs_http_service.api_id
-  stage           = module.ecs_http_service.stage_id
-  endpoint_type   = "REGIONAL"
-  security_policy = "TLS_1_2"
 }
 
 # DynamoDB Table — one physical table per deployment/product/environment.
@@ -183,9 +48,9 @@ module "dynamodb_single_table" {
   name = "${var.name}-entities"
 }
 
-# IAM — ECS Runtime Roles
-module "app_runtime_iam" {
-  source = "github.com/jch254/terraform-modules//app-runtime-iam?ref=1.19.0"
+# IAM — Lambda runtime role
+module "lambda_runtime_iam" {
+  source = "github.com/jch254/terraform-modules//lambda-runtime-iam?ref=1.19.0"
 
   name        = var.name
   environment = var.environment
@@ -199,7 +64,52 @@ module "app_runtime_iam" {
   dynamodb_table_arn = module.dynamodb_single_table.table_arn
 }
 
-# IAM — CodeBuild Terraform deploy role
+# Lambda (container image) HTTP runtime, behind an API Gateway HTTP API.
+module "lambda_http_service" {
+  source = "github.com/jch254/terraform-modules//lambda-http-service?ref=1.19.0"
+
+  name        = var.name
+  environment = var.environment
+
+  image    = "${module.ecr_repository.repository_url}:${var.image_tag}"
+  role_arn = module.lambda_runtime_iam.role_arn
+
+  memory_size  = var.lambda_memory_size
+  timeout      = var.lambda_timeout
+  architecture = var.lambda_architecture
+
+  log_retention_in_days = 7
+
+  environment_variables = local.app_environment_variables
+
+  depends_on = [module.lambda_runtime_iam]
+}
+
+# ACM Certificate for API Gateway custom domain
+module "acm_certificate" {
+  source = "github.com/jch254/terraform-modules//acm-dns-validated-certificate?ref=1.19.0"
+
+  domain_name               = var.dns_name
+  subject_alternative_names = []
+  validation_method         = "DNS"
+}
+
+# Note: Certificate validation is handled manually via Cloudflare DNS
+
+# API Gateway Custom Domain — maps to the Lambda HTTP API's $default stage.
+module "api_gateway_custom_domain" {
+  source = "github.com/jch254/terraform-modules//api-gateway-custom-domain?ref=1.19.0"
+
+  domain_name     = var.dns_name
+  certificate_arn = module.acm_certificate.arn
+  api_id          = module.lambda_http_service.api_id
+  stage           = module.lambda_http_service.stage_id
+  endpoint_type   = "REGIONAL"
+  security_policy = "TLS_1_2"
+}
+
+# IAM — CodeBuild Terraform deploy role. Lambda variant: no ECS, no service
+# discovery, no EC2 networking; the app Lambda is managed by its exact ARN.
 module "codebuild_terraform_role" {
   source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.19.0"
 
@@ -209,11 +119,11 @@ module "codebuild_terraform_role" {
   s3_read_write_resource_arns = ["*"]
 
   ecr_repository_arns       = [module.ecr_repository.repository_arn]
-  enable_ecs                = true
-  enable_ec2_networking     = true
+  enable_ecs                = false
+  enable_ec2_networking     = false
   enable_api_gateway        = true
   api_gateway_resource_arns = ["arn:aws:apigateway:${var.region}::/*"]
-  enable_service_discovery  = true
+  enable_service_discovery  = false
   enable_route53            = true
   enable_acm                = true
 
@@ -221,6 +131,9 @@ module "codebuild_terraform_role" {
   ssm_parameter_arns = [
     local.cloudflare_api_token_parameter_arn,
   ]
+
+  # Manage the app Lambda function (create/update code + config/delete).
+  lambda_function_arns = [local.app_lambda_function_arn]
 
   prefix_managed_services = [
     "iam_role",
@@ -235,7 +148,11 @@ module "codebuild_terraform_role" {
     "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:shared/github-token*",
   ]
 
-  lambda_permission_function_arns = [local.build_notifier_lambda_function_arn]
+  # AddPermission on the app function (API Gateway invoke) and the build notifier.
+  lambda_permission_function_arns = [
+    local.app_lambda_function_arn,
+    local.build_notifier_lambda_function_arn,
+  ]
 }
 
 # CodeBuild Project
@@ -268,8 +185,7 @@ module "codebuild_project" {
     { name = "AWS_ACCOUNT_ID", value = data.aws_caller_identity.current.account_id },
     { name = "IMAGE_REPO_NAME", value = module.ecr_repository.repository_name },
     { name = "IMAGE_TAG", value = var.image_tag },
-    { name = "CLUSTER_NAME", value = module.ecs_http_service.cluster_name },
-    { name = "SERVICE_NAME", value = module.ecs_http_service.service_name },
+    { name = "FUNCTION_NAME", value = module.lambda_http_service.function_name },
     { name = "CLOUDFLARE_DOMAIN", value = var.cloudflare_domain },
     { name = "CLOUDFLARE_SUBDOMAIN", value = var.cloudflare_subdomain },
     { name = "CLOUDFLARE_API_TOKEN_PARAMETER_NAME", value = var.cloudflare_api_token_ssm_parameter_name },

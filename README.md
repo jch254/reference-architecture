@@ -18,12 +18,14 @@ Minimal, production-ready backend architecture.
 ## Architecture
 
 ```
-/src/backend      → NestJS API
-/src/frontend     → React (Vite)
-/src/mobile       → React Native
-Dockerfile        → runtime
-buildspec.yml     → CI/CD (CodeBuild)
-/infrastructure   → deployment (Terraform + Cloudflare)
+/src/backend         → NestJS API
+/src/frontend        → React (Vite)
+/src/mobile          → React Native
+Dockerfile           → ECS runtime
+Dockerfile.lambda    → Lambda (container image) runtime
+buildspec.yml        → ECS CI/CD (CodeBuild)
+buildspec-lambda.yml → Lambda CI/CD (CodeBuild)
+/infrastructure      → deployment (Terraform + Cloudflare)
 ```
 
 ---
@@ -104,6 +106,32 @@ Docker + CodeBuild + Terraform. Cloudflare for DNS.
 Reusable AWS and Cloudflare infrastructure primitives are composed from [`jch254/terraform-modules`](https://github.com/jch254/terraform-modules), while app-specific configuration stays local in this repo. The AWS and Cloudflare Terraform roots remain separate so DNS can continue to read AWS outputs through remote state.
 
 See [infrastructure/README.md](infrastructure/README.md) for details.
+
+### Compute variants — ECS or Lambda
+
+The same app and the same API Gateway + Cloudflare front door support two
+interchangeable compute backends, chosen by which Terraform root a deployment uses:
+
+| Compute | Terraform root | Runtime entrypoint | Buildspec |
+|---|---|---|---|
+| ECS Fargate (default) | `infrastructure/terraform` | `Dockerfile` → `dist/backend/main.js` | `buildspec.yml` |
+| Lambda (container image) | `infrastructure/terraform-lambda` | `Dockerfile.lambda` → `dist/backend/lambda.handler` | `buildspec-lambda.yml` |
+
+App wiring is shared: `src/backend/app.factory.ts` (`createApp()`) builds the Nest
+app once, and both `main.ts` (ECS/local — listens) and `lambda.ts` (Lambda —
+serverless adapter, no listener) use it, so behaviour does not drift between
+backends. The Lambda variant runs the function from a container image behind an API
+Gateway HTTP API Lambda-proxy integration (no VPC), reuses the shared Cloudflare
+DNS layer, and resolves `COOKIE_SECRET`/`RESEND_API_KEY` from SSM at cold start so
+they are never baked into the function config or Terraform state.
+
+`reference-architecture-lambda.603.nz` is a ready-to-deploy demo identity mirroring
+the default magic-link profile; see
+[infrastructure/terraform-lambda/README.md](infrastructure/terraform-lambda/README.md)
+for the bootstrap — a container-image Lambda can't be created until its image is in
+ECR, so its first deploy stages an image push. Two Lambda-specific caveats:
+`@nestjs/throttler`'s in-memory limits are per warm instance (reset on cold start),
+and `AWS_REGION` is injected by the runtime rather than set as an env var.
 
 ### Tenant resolution modes
 
