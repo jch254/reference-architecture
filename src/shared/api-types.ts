@@ -27,6 +27,13 @@ export interface ApiErrorResponse {
 export type RuntimeAuthProvider = 'none' | 'internal_magic_link' | 'oidc';
 
 /**
+ * Compute backend serving this deployment. Detected at runtime (Lambda and ECS
+ * set distinctive environment variables), so the same bundle reports whichever
+ * platform it is actually running on.
+ */
+export type RuntimeCompute = 'lambda' | 'ecs' | 'local';
+
+/**
  * Public runtime config served by GET /api/config. Lets a single frontend
  * bundle adapt to each deployment's auth provider without build-time env.
  * All values here are public (no secrets); `auth0` is only populated when the
@@ -34,6 +41,7 @@ export type RuntimeAuthProvider = 'none' | 'internal_magic_link' | 'oidc';
  */
 export interface RuntimeConfig {
   authProvider: RuntimeAuthProvider;
+  compute: RuntimeCompute;
   auth0: {
     domain: string;
     clientId: string;

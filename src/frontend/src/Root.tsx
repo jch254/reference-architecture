@@ -10,14 +10,16 @@ import { fetchRuntimeConfig, type RuntimeConfig } from './runtime-config';
 
 function Shell({
   authProvider = 'internal_magic_link',
+  compute,
   children,
 }: {
   authProvider?: RuntimeConfig['authProvider'];
+  compute?: RuntimeConfig['compute'];
   children: React.ReactNode;
 }) {
   return (
     <div className="app-container">
-      <AppHeader authProvider={authProvider} />
+      <AppHeader authProvider={authProvider} compute={compute} />
       <hr className="section-divider" />
       {children}
       <AppFooter />
@@ -54,7 +56,7 @@ export function Root() {
   if (cfg.authProvider === 'oidc') {
     if (!cfg.auth0) {
       return (
-        <Shell authProvider={cfg.authProvider}>
+        <Shell authProvider={cfg.authProvider} compute={cfg.compute}>
           <p className="error-message">
             This deployment is configured for OIDC login but is missing Auth0
             SPA settings. Set AUTH0_SPA_CLIENT_ID for this deployment.
@@ -74,11 +76,11 @@ export function Root() {
           window.history.replaceState({}, '', window.location.pathname)
         }
       >
-        <OidcApp />
+        <OidcApp compute={cfg.compute} />
       </Auth0Provider>
     );
   }
 
   // none / internal_magic_link → existing demo behaviour, untouched.
-  return <App authProvider={cfg.authProvider} />;
+  return <App authProvider={cfg.authProvider} compute={cfg.compute} />;
 }

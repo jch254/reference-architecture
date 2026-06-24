@@ -5,8 +5,15 @@
 # and the entrypoint: instead of listening on a port, Lambda invokes the
 # exported handler in dist/backend/lambda.js. App wiring is identical because
 # both entrypoints share createApp() (src/backend/app.factory.ts).
+#
+# The builder stage runs on the native build platform ($BUILDPLATFORM) so its
+# JS toolchain (esbuild/vite) is never emulated — its output is
+# architecture-independent JS. Only the runtime stage takes the target
+# platform, which lets `docker build --platform linux/amd64` succeed on an
+# arm64 host (e.g. Apple Silicon) while still matching the x86_64 Lambda. This
+# is a no-op for CodeBuild, where build and target platforms already match.
 
-FROM public.ecr.aws/docker/library/node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM public.ecr.aws/docker/library/node:24-alpine AS builder
 
 WORKDIR /app
 

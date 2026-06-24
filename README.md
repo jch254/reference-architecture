@@ -10,8 +10,12 @@ Minimal, production-ready backend architecture.
 
 **Live demos:**
 
-- [reference-architecture.603.nz](https://reference-architecture.603.nz)
+- [reference-architecture.603.nz](https://reference-architecture.603.nz) — ECS Fargate
 - [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC backend demo
+- [reference-architecture-lambda.603.nz](https://reference-architecture-lambda.603.nz) — same app on Lambda (container image)
+
+Each demo shows which compute backend is serving it (a "Running on …" badge in the
+header), detected at runtime — same bundle, different deployment.
 
 ---
 
@@ -125,11 +129,19 @@ Gateway HTTP API Lambda-proxy integration (no VPC), reuses the shared Cloudflare
 DNS layer, and resolves `COOKIE_SECRET`/`RESEND_API_KEY` from SSM at cold start so
 they are never baked into the function config or Terraform state.
 
-`reference-architecture-lambda.603.nz` is a ready-to-deploy demo identity mirroring
-the default magic-link profile; see
-[infrastructure/terraform-lambda/README.md](infrastructure/terraform-lambda/README.md)
+`reference-architecture-lambda.603.nz` is a live demo mirroring the default
+magic-link profile — same app and frontend, only the compute backend differs. The
+backend detects its platform at runtime (`AWS_LAMBDA_FUNCTION_NAME` vs ECS's
+`ECS_CONTAINER_METADATA_URI_V4`) and surfaces it via `GET /api/config`, so the
+header's "Running on …" badge needs no per-deployment config — the same bundle
+shows "AWS Lambda" or "ECS Fargate" depending on where it runs.
+
+See [infrastructure/terraform-lambda/README.md](infrastructure/terraform-lambda/README.md)
 for the bootstrap — a container-image Lambda can't be created until its image is in
-ECR, so its first deploy stages an image push. Two Lambda-specific caveats:
+ECR, so the first deploy stages an image push. The image must match the Lambda
+architecture (`x86_64` here); `Dockerfile.lambda` builds its toolchain stage on the
+native `$BUILDPLATFORM`, so `docker build --platform linux/amd64` works on Apple
+Silicon without emulating the frontend build. Two Lambda-specific caveats:
 `@nestjs/throttler`'s in-memory limits are per warm instance (reset on cold start),
 and `AWS_REGION` is injected by the runtime rather than set as an env var.
 

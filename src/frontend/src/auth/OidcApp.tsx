@@ -5,6 +5,7 @@ import { AppHeader } from '../AppHeader';
 import { AppFooter } from '../AppFooter';
 import { api, ApiError, setTokenProvider } from '../api/api-client';
 import { getDemoCopy } from '../demo-copy';
+import type { RuntimeCompute } from '../../../shared/api-types';
 
 interface Example {
   id: string;
@@ -26,7 +27,7 @@ interface LocalUser {
  * <Auth0Provider>. The default/magic-link deployment keeps using <App>; this
  * component never runs there.
  */
-export function OidcApp() {
+export function OidcApp({ compute }: { compute?: RuntimeCompute }) {
   const copy = getDemoCopy('oidc');
   const {
     isLoading,
@@ -149,7 +150,7 @@ export function OidcApp() {
   if (isLoading) {
     return (
       <div className="app-container">
-        <AppHeader authProvider="oidc" />
+        <AppHeader authProvider="oidc" compute={compute} />
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
         <AppFooter />
@@ -159,7 +160,7 @@ export function OidcApp() {
 
   return (
     <div className="app-container">
-      <AppHeader authProvider="oidc" />
+      <AppHeader authProvider="oidc" compute={compute} />
       <hr className="section-divider" />
 
       {!isAuthenticated && (

@@ -38,7 +38,11 @@ describe('Root auth-provider selection', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('renders the magic-link app without requiring Auth0 config in non-OIDC mode', async () => {
-    const cfg: RuntimeConfig = { authProvider: 'internal_magic_link', auth0: null };
+    const cfg: RuntimeConfig = {
+      authProvider: 'internal_magic_link',
+      compute: 'lambda',
+      auth0: null,
+    };
     mockFetchRuntimeConfig.mockResolvedValue(cfg);
 
     render(<Root />);
@@ -46,6 +50,8 @@ describe('Root auth-provider selection', () => {
     // The existing magic-link sign-in UI renders; Auth0 is never consulted.
     expect(await screen.findByRole('button', { name: /send link/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Reference Architecture Demo' })).toBeInTheDocument();
+    // Compute badge reflects the runtime config's detected backend.
+    expect(screen.getByText('AWS Lambda')).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /compare the auth0\/oidc deployment/i }),
     ).toHaveAttribute('href', 'https://reference-architecture-auth0.603.nz');
@@ -56,6 +62,7 @@ describe('Root auth-provider selection', () => {
   it('renders the Auth0 login flow in OIDC mode', async () => {
     const cfg: RuntimeConfig = {
       authProvider: 'oidc',
+      compute: 'ecs',
       auth0: {
         domain: 'tenant.auth0.com',
         clientId: 'spa-client-id',
@@ -79,6 +86,7 @@ describe('Root auth-provider selection', () => {
       expect(screen.getByRole('button', { name: /log in with auth0/i })).toBeInTheDocument(),
     );
     expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
+    expect(screen.getByText('ECS Fargate')).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /compare the magic-link deployment/i }),
     ).toHaveAttribute('href', 'https://reference-architecture.603.nz');

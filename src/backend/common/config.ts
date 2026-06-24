@@ -1,3 +1,5 @@
+import type { RuntimeCompute } from '../../shared/api-types';
+
 export type EmailMode = 'live' | 'redirect' | 'noop';
 export type TenantResolutionMode = 'fixed' | 'subdomain';
 export type AuthProvider = 'none' | 'internal_magic_link' | 'oidc';
@@ -43,6 +45,26 @@ function parseAuthProvider(): AuthProvider {
 }
 
 const authProvider = parseAuthProvider();
+
+/**
+ * Detect the compute backend at runtime. The Lambda runtime always sets
+ * AWS_LAMBDA_FUNCTION_NAME; ECS injects ECS_CONTAINER_METADATA_URI_V4 into
+ * tasks. An explicit COMPUTE_PLATFORM override wins for tests/edge cases. This
+ * needs no Terraform wiring — the same image reports wherever it runs.
+ */
+function parseCompute(): RuntimeCompute {
+  const override = process.env.COMPUTE_PLATFORM;
+  if (override === 'lambda' || override === 'ecs' || override === 'local') {
+    return override;
+  }
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) return 'lambda';
+  if (process.env.ECS_CONTAINER_METADATA_URI_V4 || process.env.ECS_CONTAINER_METADATA_URI) {
+    return 'ecs';
+  }
+  return 'local';
+}
+
+const compute = parseCompute();
 
 function requireUrlEnv(name: string): string {
   const value = requireEnv(name);
@@ -103,6 +125,7 @@ export const config = {
   authTokenExpiryMinutes: 15,
   sessionMaxAgeDays: 7,
   authProvider,
+  compute,
   oidc,
   // Auth0 SPA application client id. Public (safe to expose to the browser),
   // deployment-specific, and surfaced via the runtime /api/config endpoint so

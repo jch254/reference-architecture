@@ -79,6 +79,32 @@ body {
   color: var(--color-muted);
 }
 
+/* ── Compute badge ── */
+.compute-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-bottom: var(--space-sm);
+  padding: 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.compute-badge strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.compute-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* ── Footer ── */
 .app-footer {
   margin-top: auto;

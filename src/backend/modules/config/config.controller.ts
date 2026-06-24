@@ -16,7 +16,11 @@ export class ConfigController {
   @Public()
   @Get()
   getConfig(): RuntimeConfig {
-    return { authProvider: config.authProvider, auth0: this.auth0Config() };
+    return {
+      authProvider: config.authProvider,
+      compute: config.compute,
+      auth0: this.auth0Config(),
+    };
   }
 
   private auth0Config(): RuntimeConfig['auth0'] {

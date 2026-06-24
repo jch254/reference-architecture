@@ -94,12 +94,14 @@ terraform apply \
 
 # 3. Wait for ACM to be ISSUED, then build and push a FIRST image so the Lambda
 #    can be created. (Run from the repo root; needs Docker + ECR login.)
+#    --platform must match lambda_architecture (x86_64 → linux/amd64); the
+#    Dockerfile builds its toolchain stage natively so this works on Apple Silicon.
 cd ../../..
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/reference-architecture-lambda:latest"
 aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" \
   | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-docker build -f Dockerfile.lambda -t "${IMAGE_URI}" .
+docker build --platform linux/amd64 -f Dockerfile.lambda -t "${IMAGE_URI}" .
 docker push "${IMAGE_URI}"
 
 # 4. Full AWS apply — creates the Lambda from the image, custom domain, CodeBuild,
@@ -171,3 +173,12 @@ their own `/api/config` and behave unchanged.
 - **Rate limiting.** `@nestjs/throttler` uses an in-memory store, so limits are
   per warm instance and reset on cold start. Acceptable for the reference;
   externalise the store if you need global limits.
+- **Image architecture.** The image must match `lambda_architecture` (`x86_64`).
+  CodeBuild builds natively on x86_64, so the pipeline is unaffected. For local
+  builds (e.g. bootstrap) on Apple Silicon, pass `--platform linux/amd64` — a
+  mismatched image fails at invoke with `Runtime.InvalidEntrypoint`. The builder
+  stage uses `$BUILDPLATFORM` so the frontend build never runs under emulation.
+- **Compute badge.** The app detects its platform at runtime (Lambda sets
+  `AWS_LAMBDA_FUNCTION_NAME`; ECS sets `ECS_CONTAINER_METADATA_URI_V4`) and
+  reports it via `GET /api/config`, which the frontend shows as a header badge.
+  No Terraform wiring is needed; override with `COMPUTE_PLATFORM` if required.

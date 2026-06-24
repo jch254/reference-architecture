@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import './App.css';
-import type { RuntimeAuthProvider } from '../../shared/api-types';
+import type { RuntimeAuthProvider, RuntimeCompute } from '../../shared/api-types';
 
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
@@ -25,8 +25,10 @@ type AuthState = 'loading' | 'unauthenticated' | 'sent' | 'authenticated';
 
 export function App({
   authProvider = 'internal_magic_link',
+  compute,
 }: {
   authProvider?: RuntimeAuthProvider;
+  compute?: RuntimeCompute;
 }) {
   const copy = getDemoCopy(authProvider);
   const [authState, setAuthState] = useState<AuthState>('loading');
@@ -205,7 +207,7 @@ export function App({
   if (authState === 'loading') {
     return (
       <div className="app-container">
-        <AppHeader authProvider={authProvider} />
+        <AppHeader authProvider={authProvider} compute={compute} />
         <hr className="section-divider" />
         <p className="muted-text">Loading…</p>
         <AppFooter />
@@ -215,7 +217,7 @@ export function App({
 
   return (
     <div className="app-container">
-      <AppHeader authProvider={authProvider} />
+      <AppHeader authProvider={authProvider} compute={compute} />
 
       <hr className="section-divider" />
 
