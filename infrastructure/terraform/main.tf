@@ -24,11 +24,29 @@ data "aws_subnets" "public" {
   }
 }
 
-# ECR Repository
+# ECR Repository. Keep the last 3 images — older tags are re-buildable from
+# git and each multi-GB image is real ECR storage cost.
 module "ecr_repository" {
   source = "github.com/jch254/terraform-modules//ecr-repository?ref=1.19.1"
 
   name = var.name
+
+  lifecycle_policy_json = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep only the last 3 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 3
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
 
 # ECS HTTP runtime
