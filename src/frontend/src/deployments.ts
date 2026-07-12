@@ -24,11 +24,11 @@ export const DEPLOYMENTS: Deployment[] = [
     label: 'magic-link on ECS Fargate',
   },
   {
-    id: 'fargate-auth0',
+    id: 'lambda-auth0',
     authProvider: 'oidc',
-    compute: 'ecs',
+    compute: 'lambda',
     href: 'https://reference-architecture-auth0.603.nz',
-    label: 'Auth0/OIDC on ECS Fargate',
+    label: 'Auth0/OIDC on AWS Lambda',
   },
   {
     id: 'lambda-magic',

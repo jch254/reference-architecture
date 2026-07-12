@@ -6,8 +6,21 @@ is the compute backend: an AWS Lambda function deployed from a container image,
 fronted by an API Gateway HTTP API (v2) Lambda-proxy integration instead of ECS
 Fargate behind a VPC Link.
 
-This is a separate Terraform root with its own state key, so it is fully
-additive: it does not touch the ECS demos.
+This is a separate Terraform root, reused per deployment identity by changing
+the var file and remote state key, so it is fully additive: it does not touch
+the ECS demo.
+
+| Domain | Var file | State key | Runtime config |
+| --- | --- | --- | --- |
+| `reference-architecture-lambda.603.nz` | `environments/prod-lambda/terraform.tfvars` | `reference-architecture-lambda` | `TENANT_RESOLUTION_MODE=subdomain`, `AUTH_PROVIDER=internal_magic_link` |
+| `reference-architecture-auth0.603.nz` | `environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `TENANT_RESOLUTION_MODE=fixed`, `APP_TENANT_ID=refarch-auth0-demo`, `AUTH_PROVIDER=oidc` |
+
+The bootstrap below is written for the `prod-lambda` identity; for the Auth0
+identity substitute `TF_STATE_KEY=reference-architecture-auth0`,
+`TF_VAR_FILE=environments/prod-auth0/terraform.tfvars`, and Cloudflare
+`subdomain=reference-architecture-auth0`, and see the
+[Auth0/OIDC provisioning runbook](../README.md#provisioning-a-new-auth0oidc-deployment)
+for the Auth0 dashboard setup.
 
 ## Architecture
 

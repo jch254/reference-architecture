@@ -35,7 +35,7 @@ describe('OidcApp', () => {
 
   it('renders a login button when unauthenticated', () => {
     mockUseAuth0.mockReturnValue({ ...baseAuth0, isAuthenticated: false });
-    render(<OidcApp compute="ecs" />);
+    render(<OidcApp compute="lambda" />);
     expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /magic-link on ECS Fargate/i })).toHaveAttribute(
       'href',

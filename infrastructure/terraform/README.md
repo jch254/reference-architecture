@@ -63,63 +63,7 @@ ACM certificate requires DNS validation via Cloudflare, but Cloudflare depends o
 
 After bootstrap, all subsequent deploys run automatically via CodeBuild.
 
-For the Auth0 deployment identity, use the Auth0 state key and var file throughout:
-
-```bash
-export REMOTE_STATE_BUCKET="jch254-terraform-remote-state"
-export AWS_DEFAULT_REGION="ap-southeast-4"
-export TF_STATE_KEY="reference-architecture-auth0"
-export TF_VAR_FILE="environments/prod-auth0/terraform.tfvars"
-
-cd infrastructure/terraform
-terraform init -reconfigure \
-  -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
-  -backend-config "key=${TF_STATE_KEY}" \
-  -backend-config "region=${AWS_DEFAULT_REGION}" \
-  -get=true
-terraform apply \
-  -var-file="${TF_VAR_FILE}" \
-  -target=module.acm_certificate.aws_acm_certificate.main
-
-export CLOUDFLARE_API_TOKEN="$(
-  aws ssm get-parameter \
-    --name "/reference-architecture/cloudflare-api-token" \
-    --with-decryption \
-    --query Parameter.Value \
-    --output text
-)"
-
-cd cloudflare
-terraform init -reconfigure \
-  -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
-  -backend-config "key=${TF_STATE_KEY}-cloudflare" \
-  -backend-config "region=${AWS_DEFAULT_REGION}" \
-  -get=true
-terraform apply \
-  -var="cloudflare_api_token=${CLOUDFLARE_API_TOKEN}" \
-  -var="domain=603.nz" \
-  -var="subdomain=reference-architecture-auth0" \
-  -var="aws_region=${AWS_DEFAULT_REGION}" \
-  -var="aws_state_bucket=${REMOTE_STATE_BUCKET}" \
-  -var="aws_state_key=${TF_STATE_KEY}"
-
-# After ACM is ISSUED:
-cd ..
-terraform apply \
-  -var-file="${TF_VAR_FILE}" \
-  -var="image_tag=${IMAGE_TAG:-latest}"
-
-cd cloudflare
-terraform apply \
-  -var="cloudflare_api_token=${CLOUDFLARE_API_TOKEN}" \
-  -var="domain=603.nz" \
-  -var="subdomain=reference-architecture-auth0" \
-  -var="aws_region=${AWS_DEFAULT_REGION}" \
-  -var="aws_state_bucket=${REMOTE_STATE_BUCKET}" \
-  -var="aws_state_key=${TF_STATE_KEY}"
-```
-
-The first full AWS apply creates the Auth0 CodeBuild project and webhook. If the selected image tag is not present in the new Auth0 ECR repo yet, the ECS service can be unhealthy until the first Auth0 CodeBuild run builds and pushes that commit's image. Once DNS and runtime are healthy, `https://reference-architecture-auth0.603.nz/api/health` should return `{"data":{"status":"ok"}}`.
+The Auth0/OIDC deployment identity now runs on the Lambda compute variant; its bootstrap lives in [../terraform-lambda/README.md](../terraform-lambda/README.md) with `TF_STATE_KEY=reference-architecture-auth0` and `TF_VAR_FILE=environments/prod-auth0/terraform.tfvars`.
 
 ## Pipeline flow
 
@@ -132,11 +76,10 @@ This root is reused for each deployment identity by changing the var file and re
 | Domain | Var file | State key | Runtime config |
 | --- | --- | --- | --- |
 | `reference-architecture.603.nz` | `environments/prod/terraform.tfvars` | `reference-architecture` | `TENANT_RESOLUTION_MODE=subdomain`, `AUTH_PROVIDER=internal_magic_link` |
-| `reference-architecture-auth0.603.nz` | `environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `TENANT_RESOLUTION_MODE=fixed`, `APP_TENANT_ID=refarch-auth0-demo`, `AUTH_PROVIDER=oidc` |
 
-The Auth0/OIDC demo is additive. It gets its own `name = "reference-architecture-auth0"` resources, including ECS runtime resources, API custom domain/certificate, CodeBuild project, SSM placeholders, and `${name}-entities` DynamoDB table. The logical item key shape remains `PK = TENANT#refarch-auth0-demo`; the app does not select DynamoDB tables dynamically from the request tenant.
+The Auth0/OIDC demo (`reference-architecture-auth0.603.nz`) is a separate deployment identity on the Lambda compute variant — see [../terraform-lambda/README.md](../terraform-lambda/README.md). It keeps its own `name = "reference-architecture-auth0"` resources and `${name}-entities` DynamoDB table; the logical item key shape remains `PK = TENANT#refarch-auth0-demo`.
 
-The deployment pipeline reads `TF_STATE_KEY` and `TF_VAR_FILE` from the CodeBuild project environment. For the Auth0 demo these are set from the tfvars file to `reference-architecture-auth0` and `environments/prod-auth0/terraform.tfvars`, which keeps AWS and Cloudflare state separate from the existing demo.
+The deployment pipeline reads `TF_STATE_KEY` and `TF_VAR_FILE` from the CodeBuild project environment, which keeps AWS and Cloudflare state separate per deployment identity.
 
 ## Tenant and DynamoDB isolation
 

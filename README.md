@@ -11,7 +11,7 @@ Minimal, production-ready backend architecture.
 **Live demos:**
 
 - [reference-architecture.603.nz](https://reference-architecture.603.nz) — ECS Fargate
-- [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC backend demo
+- [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC backend demo on Lambda (container image)
 - [reference-architecture-lambda.603.nz](https://reference-architecture-lambda.603.nz) — same app on Lambda (container image)
 
 Each demo shows which compute backend is serving it (a "Running on …" badge in the
@@ -280,9 +280,9 @@ Current deployment matrix:
 | Host | Purpose | Terraform var file | State key | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
 |---|---|---|---|---|---|---|
 | `reference-architecture.603.nz` | Existing/default demo | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture` | `subdomain` | — | `internal_magic_link` |
-| `reference-architecture-auth0.603.nz` | Auth0/OIDC backend demo | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `fixed` | `refarch-auth0-demo` | `oidc` |
+| `reference-architecture-auth0.603.nz` | Auth0/OIDC backend demo (Lambda compute) | `infrastructure/terraform-lambda/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `fixed` | `refarch-auth0-demo` | `oidc` |
 
-The Terraform root still models one deployment identity at a time. The Auth0 demo is a second state/var-file deployment using the same modules and app code, so `reference-architecture.603.nz` keeps its existing resource names and state while `reference-architecture-auth0.603.nz` gets its own ECS service, task definition, API custom domain, certificate, CodeBuild project, SSM placeholders, and DynamoDB table named from `reference-architecture-auth0`.
+Each Terraform root still models one deployment identity at a time. The Auth0 demo is a second state/var-file deployment using the same modules and app code, so `reference-architecture.603.nz` keeps its existing resource names and state while `reference-architecture-auth0.603.nz` gets its own Lambda function, API custom domain, certificate, CodeBuild project, SSM placeholders, and DynamoDB table named from `reference-architecture-auth0`. It runs on the Lambda (container image) compute variant (`infrastructure/terraform-lambda`), so the ECS root serves only the default demo.
 
 The Auth0 demo now includes a frontend Auth0 login/logout flow (see [Frontend authentication](#frontend-authentication)). CodeBuild system validation remains disabled for that deployment until a secure bearer-token injection path is configured; the browser flow is verified manually after Auth0 SPA dashboard setup. Public routing can be checked with:
 
@@ -321,7 +321,7 @@ pnpm run validate
 
 `GET /api/auth/check` without a bearer token should return `401` for `AUTH_PROVIDER=oidc`, and the validator checks that negative case. If `AUTH_BEARER_TOKEN` is omitted, OIDC validation runs as a partial smoke check and skips the authenticated request; set `VALIDATION_REQUIRE_AUTH=true` to fail instead. Token acquisition happens outside the validation script, for example with an Auth0 M2M `client_credentials` flow. Do not commit Auth0 client secrets or bearer tokens.
 
-The two public demos use the same `buildspec.yml`, but not the same build execution. After the Auth0 deployment is bootstrapped, pushes to `main` can trigger two independent CodeBuild projects: one with `TF_VAR_FILE=environments/prod/terraform.tfvars` and one with `TF_VAR_FILE=environments/prod-auth0/terraform.tfvars`.
+The public demos share app code but not build execution: each deployment identity runs its own CodeBuild project with its own buildspec, state key, and var file. The default demo builds with `buildspec.yml` (`TF_VAR_FILE=environments/prod/terraform.tfvars`); the Auth0 demo builds with `buildspec-lambda.yml` (`TF_VAR_FILE=environments/prod-auth0/terraform.tfvars`, under `infrastructure/terraform-lambda`).
 
 Manual Auth0 dashboard setup for `reference-architecture-auth0.603.nz`:
 
@@ -334,7 +334,7 @@ API (backend token validation):
 SPA application (frontend browser login):
 
 - Create an Auth0 **Single Page Application** (not the M2M client). The M2M client is only for backend `curl` testing with a `client_credentials` token; the browser login flow must use the SPA application.
-- Put the SPA application's client id in `auth0_spa_client_id` in `infrastructure/terraform/environments/prod-auth0/terraform.tfvars`. It is a public value (safe to commit/expose), but deployment-specific. Never put the client secret in Terraform or the frontend.
+- Put the SPA application's client id in `auth0_spa_client_id` in `infrastructure/terraform-lambda/environments/prod-auth0/terraform.tfvars`. It is a public value (safe to commit/expose), but deployment-specific. Never put the client secret in Terraform or the frontend.
 - Configure the SPA application URLs:
   - Allowed Callback URLs: `https://reference-architecture-auth0.603.nz`
   - Allowed Logout URLs: `https://reference-architecture-auth0.603.nz`

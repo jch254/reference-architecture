@@ -20,12 +20,20 @@ oidc_audience = "https://reference-architecture-auth0.603.nz/api"
 # frontend login flow enabled.
 auth0_spa_client_id = "EWJPdKHf6NkzKy8NS0Z6GG5DReH55j3c"
 
-vpc_id = "vpc-0844e8018ce450134"
+# Lambda sizing for the container-image function. x86_64 must match the image
+# built by Dockerfile.lambda (public.ecr.aws/lambda/nodejs:24).
+lambda_memory_size  = 512
+lambda_timeout      = 30
+lambda_architecture = "x86_64"
 
 build_docker_image = "jch254/docker-node-terraform-aws"
 build_docker_tag   = "22.x-docker"
 source_location    = "https://github.com/jch254/reference-architecture.git"
 cache_bucket       = "jch254-codebuild-cache/reference-architecture-auth0"
+
+# Lambda deployments build and deploy via buildspec-lambda.yml (Dockerfile.lambda
+# + `aws lambda wait function-updated`), not the ECS buildspec.yml.
+buildspec = "buildspec-lambda.yml"
 
 cloudflare_domain    = "603.nz"
 cloudflare_subdomain = "reference-architecture-auth0"

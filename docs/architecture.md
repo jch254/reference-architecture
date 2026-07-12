@@ -190,7 +190,7 @@ The public demos are separate deployment identities rather than one mixed-provid
 | Host | Purpose | Terraform var file | State key | `TENANT_RESOLUTION_MODE` | `APP_TENANT_ID` | `AUTH_PROVIDER` |
 |---|---|---|---|---|---|---|
 | `reference-architecture.603.nz` | Existing/default demo | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture` | `subdomain` | — | `internal_magic_link` |
-| `reference-architecture-auth0.603.nz` | Auth0/OIDC backend demo | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `fixed` | `refarch-auth0-demo` | `oidc` |
+| `reference-architecture-auth0.603.nz` | Auth0/OIDC backend demo (Lambda compute) | `infrastructure/terraform-lambda/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0` | `fixed` | `refarch-auth0-demo` | `oidc` |
 
 The Auth0 deployment uses its own DynamoDB table, derived from `name = "reference-architecture-auth0"`, while preserving the logical tenant key `PK = TENANT#refarch-auth0-demo`. It does not select tables dynamically from request tenants.
 

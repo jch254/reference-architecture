@@ -29,7 +29,7 @@ created until its image exists in ECR, so its first deploy stages an image push)
 
 ## Flow
 
-CodeBuild builds and pushes the Docker image, then applies the AWS Terraform layer. Once ECS stabilises, it applies the Cloudflare layer. This flow runs once per deployment identity; the magic-link demo and Auth0 demo use separate CodeBuild projects with separate Terraform state keys and var files.
+CodeBuild builds and pushes the Docker image, then applies the AWS Terraform layer. Once the compute stabilises (ECS service stable, or Lambda function updated), it applies the Cloudflare layer. This flow runs once per deployment identity; the magic-link demos and Auth0 demo use separate CodeBuild projects with separate Terraform state keys and var files.
 
 ## Layer relationship
 
@@ -54,7 +54,7 @@ See each layer's README for specifics.
 | Domain | Purpose | AWS state key | Var file | Cloudflare state key |
 | --- | --- | --- | --- | --- |
 | `reference-architecture.603.nz` | Existing/default demo | `reference-architecture` | `infrastructure/terraform/environments/prod/terraform.tfvars` | `reference-architecture-cloudflare` |
-| `reference-architecture-auth0.603.nz` | Fixed-tenant Auth0/OIDC backend demo | `reference-architecture-auth0` | `infrastructure/terraform/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0-cloudflare` |
+| `reference-architecture-auth0.603.nz` | Fixed-tenant Auth0/OIDC backend demo (Lambda compute) | `reference-architecture-auth0` | `infrastructure/terraform-lambda/environments/prod-auth0/terraform.tfvars` | `reference-architecture-auth0-cloudflare` |
 | `reference-architecture-lambda.603.nz` | Lambda (container image) compute demo | `reference-architecture-lambda` | `infrastructure/terraform-lambda/environments/prod-lambda/terraform.tfvars` | `reference-architecture-lambda-cloudflare` |
 
 The Auth0 demo is a separate deployment identity, not a rename of the existing demo. It uses the same Terraform roots and modules with a different state key, resource name prefix, DNS name, and DynamoDB table. Tenant resolution and auth provider selection remain separate axes:
@@ -62,7 +62,7 @@ The Auth0 demo is a separate deployment identity, not a rename of the existing d
 - `reference-architecture.603.nz` keeps `TENANT_RESOLUTION_MODE=subdomain` and `AUTH_PROVIDER=internal_magic_link`.
 - `reference-architecture-auth0.603.nz` uses `TENANT_RESOLUTION_MODE=fixed`, `APP_TENANT_ID=refarch-auth0-demo`, and `AUTH_PROVIDER=oidc`.
 
-Before applying the Auth0 deployment, set the deployment-specific `oidc_issuer`, `oidc_audience`, and `auth0_spa_client_id` values in `terraform/environments/prod-auth0/terraform.tfvars` (or override with `-var` / `TF_VAR_*`). The Auth0 API audience and issuer must match the access tokens, and the SPA application's callback/logout/web-origin URLs must match the deployment domain because the frontend now runs a browser Auth0 login flow. The Auth0 SPA client id is public and safe to commit; do not commit Auth0 client secrets or bearer tokens.
+Before applying the Auth0 deployment, set the deployment-specific `oidc_issuer`, `oidc_audience`, and `auth0_spa_client_id` values in `terraform-lambda/environments/prod-auth0/terraform.tfvars` (or override with `-var` / `TF_VAR_*`). The Auth0 API audience and issuer must match the access tokens, and the SPA application's callback/logout/web-origin URLs must match the deployment domain because the frontend now runs a browser Auth0 login flow. The Auth0 SPA client id is public and safe to commit; do not commit Auth0 client secrets or bearer tokens.
 
 For the full ordered sequence — including Auth0 dashboard setup, the new deployment identity, the staged ACM/DNS bootstrap, runtime SSM secrets, and verification — follow [Provisioning a new Auth0/OIDC deployment](#provisioning-a-new-auth0oidc-deployment) below. New apps scaffolded off this repo should follow that runbook end to end.
 
@@ -77,7 +77,7 @@ pnpm run validate
 
 For OIDC deployments, the validator also checks that `/api/auth/check` returns `401` without a token. If `AUTH_BEARER_TOKEN` is missing, the authenticated check is skipped unless `VALIDATION_REQUIRE_AUTH=true` is set. CodeBuild validation for the Auth0 deployment remains disabled until a secure token injection path is configured.
 
-The first Auth0 deployment needs the staged ACM/DNS bootstrap described in [terraform/README.md](terraform/README.md). In short: create the ACM certificate, create Cloudflare validation records, wait for the certificate to issue, then run the full AWS and Cloudflare applies. After that, the Auth0 CodeBuild project can handle future pushes like the existing demo.
+The Auth0 demo runs on the Lambda compute variant, so its bootstrap follows [terraform-lambda/README.md](terraform-lambda/README.md): create the ECR repo and ACM certificate, create Cloudflare validation records, wait for the certificate to issue, push a first image (a container-image Lambda cannot be created before its image exists), then run the full AWS and Cloudflare applies. After that, the Auth0 CodeBuild project (using `buildspec-lambda.yml`) handles future pushes like the existing demos.
 
 ## Provisioning a new Auth0/OIDC deployment
 
@@ -129,8 +129,10 @@ audience, expiry, and `sub`.
 
 ### 3. Create the deployment identity
 
-Copy `terraform/environments/prod-auth0/terraform.tfvars` to
-`terraform/environments/<app>/terraform.tfvars` and set:
+Copy `terraform-lambda/environments/prod-auth0/terraform.tfvars` to
+`terraform-lambda/environments/<app>/terraform.tfvars` (or use the ECS root's
+`terraform/environments/prod/terraform.tfvars` as the template if you want ECS
+compute) and set:
 
 - `name = "<app>"` (drives resource names and the `<app>-entities` table)
 - `terraform_state_key = "<app>"`
@@ -150,18 +152,21 @@ shows a "missing Auth0 SPA settings" message instead of a broken login.
 
 ### 4. Staged ACM/DNS bootstrap (first deploy only)
 
-Follow [terraform/README.md → Bootstrap](terraform/README.md#bootstrap) using
-this deployment's `TF_STATE_KEY=<app>`,
+Follow [terraform-lambda/README.md → Bootstrap](terraform-lambda/README.md#bootstrap)
+(or [terraform/README.md → Bootstrap](terraform/README.md#bootstrap) for ECS
+compute) using this deployment's `TF_STATE_KEY=<app>`,
 `TF_VAR_FILE=environments/<app>/terraform.tfvars`, and Cloudflare
-`subdomain=<subdomain>`: apply the ACM certificate, apply the Cloudflare layer
-(validation records only on this pass), wait for ACM to issue, then run the
-full AWS apply followed by the full Cloudflare apply. The first full AWS apply
-also creates this deployment's ECS service, DynamoDB table, SSM placeholders,
-and CodeBuild project + webhook.
+`subdomain=<subdomain>`: apply the ECR repo and ACM certificate, apply the
+Cloudflare layer (validation records only on this pass), wait for ACM to issue,
+push a first image (Lambda compute only — a container-image Lambda cannot be
+created before its image exists), then run the full AWS apply followed by the
+full Cloudflare apply. The first full AWS apply also creates this deployment's
+compute runtime, DynamoDB table, SSM placeholders, and CodeBuild project +
+webhook.
 
 ### 5. Runtime secrets (SSM)
 
-The first AWS apply creates empty SSM **placeholders**; the ECS task will not
+The first AWS apply creates empty SSM **placeholders**; the app will not
 be healthy until they hold real values:
 
 - `/<app>/cookie-secret` — **required for every deployment** (used to sign
@@ -173,8 +178,10 @@ be healthy until they hold real values:
   email is needed.
 
 Put values in with `aws ssm put-parameter --overwrite --type SecureString`,
-then force a new ECS deployment so tasks pick them up. No Auth0 secret is
-stored here — the SPA client id is public config, not a secret.
+then restart the compute so it picks them up (force a new ECS deployment, or
+for Lambda let the next deploy/cold start re-read them — secrets are fetched
+from SSM at cold start). No Auth0 secret is stored here — the SPA client id is
+public config, not a secret.
 
 ### 6. First build and ongoing deploys
 

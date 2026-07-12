@@ -58,7 +58,7 @@ describe('Root auth-provider selection', () => {
       screen.getByRole('link', { name: /magic-link on ECS Fargate/i }),
     ).toHaveAttribute('href', 'https://reference-architecture.603.nz');
     expect(
-      screen.getByRole('link', { name: /Auth0\/OIDC on ECS Fargate/i }),
+      screen.getByRole('link', { name: /Auth0\/OIDC on AWS Lambda/i }),
     ).toHaveAttribute('href', 'https://reference-architecture-auth0.603.nz');
     expect(
       screen.queryByRole('link', { name: /magic-link on AWS Lambda/i }),
@@ -70,7 +70,7 @@ describe('Root auth-provider selection', () => {
   it('renders the Auth0 login flow in OIDC mode', async () => {
     const cfg: RuntimeConfig = {
       authProvider: 'oidc',
-      compute: 'ecs',
+      compute: 'lambda',
       auth0: {
         domain: 'tenant.auth0.com',
         clientId: 'spa-client-id',
@@ -94,8 +94,8 @@ describe('Root auth-provider selection', () => {
       expect(screen.getByRole('button', { name: /log in with auth0/i })).toBeInTheDocument(),
     );
     expect(screen.getByRole('heading', { name: 'Reference Architecture Auth0 Demo' })).toBeInTheDocument();
-    expect(screen.getByText('ECS Fargate')).toBeInTheDocument();
-    // The Fargate Auth0 deployment links to the two magic-link deployments.
+    expect(screen.getByText('AWS Lambda')).toBeInTheDocument();
+    // The Lambda Auth0 deployment links to the two magic-link deployments.
     expect(
       screen.getByRole('link', { name: /magic-link on ECS Fargate/i }),
     ).toHaveAttribute('href', 'https://reference-architecture.603.nz');
