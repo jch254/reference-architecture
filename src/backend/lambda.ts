@@ -62,6 +62,20 @@ async function loadSecretsIntoEnv(): Promise<void> {
   }
 }
 
+/**
+ * Response content types the adapter returns to API Gateway as base64.
+ *
+ * A Lambda-proxy response body is a string. The adapter base64-encodes a
+ * response it judges to be binary and passes everything else through as
+ * UTF-8, which destroys a binary file. Its default list is `image/*` only, so
+ * the frontend's woff2 fonts (`font/woff2`, served by express.static from
+ * /assets) need adding here. Compressed responses are still detected by their
+ * content-encoding, which this list does not replace.
+ *
+ * ECS serves the same files straight from Express and needs none of this.
+ */
+export const BINARY_CONTENT_TYPES = ['image/*', 'font/*'];
+
 let handlerPromise: Promise<LambdaHandler> | undefined;
 
 async function bootstrapHandler(): Promise<LambdaHandler> {
@@ -75,6 +89,7 @@ async function bootstrapHandler(): Promise<LambdaHandler> {
   const serverlessExpress = (await import('@codegenie/serverless-express')).default;
   return serverlessExpress({
     app: app.getHttpAdapter().getInstance(),
+    binarySettings: { contentTypes: BINARY_CONTENT_TYPES },
   }) as unknown as LambdaHandler;
 }
 

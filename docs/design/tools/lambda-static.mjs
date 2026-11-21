@@ -1,5 +1,6 @@
 // Do the built frontend's binary files survive the Lambda adapter?
 //
+//   pnpm build && (cd src/frontend && pnpm build)
 //   node docs/design/tools/lambda-static.mjs
 //
 // The two Lambda deployments serve static files through
@@ -7,13 +8,18 @@
 // returns a response body as base64 only when it decides the response is
 // binary, and otherwise as a UTF-8 string, which destroys a binary file.
 //
-// This runs the adapter here, with the same options src/backend/lambda.ts
-// passes it, in front of express.static with the cache headers from
-// src/backend/app.factory.ts. It sends an HTTP API (payload v2) event for
-// every file in src/frontend/dist and compares what comes back with the
-// file on disk. It needs a build in src/frontend/dist and the root
-// node_modules. It is a local stand-in for the check on the deployed
-// Lambda, not a replacement for it.
+// This runs the adapter here in front of express.static with the cache
+// headers from src/backend/app.factory.ts. The adapter's binary settings are
+// read from the built handler (dist/backend/lambda.js), so the check uses
+// what the Lambda uses. It sends an HTTP API (payload v2) event for every
+// file in src/frontend/dist and compares what comes back with the file on
+// disk. It is a local stand-in for the check on the deployed Lambda, not a
+// replacement for it.
+//
+// To see what the adapter does with other options, pass them as JSON. Its
+// defaults, which break the fonts:
+//
+//   ADAPTER_OPTIONS='{}' node docs/design/tools/lambda-static.mjs
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -39,8 +45,12 @@ app.use(
   }),
 );
 
-// The options lambda.ts passes. Add binarySettings here to try a fix.
-const handler = serverlessExpress({ app, ...JSON.parse(process.env.ADAPTER_OPTIONS ?? '{}') });
+const options = process.env.ADAPTER_OPTIONS
+  ? JSON.parse(process.env.ADAPTER_OPTIONS)
+  : { binarySettings: { contentTypes: require(path.join(root, 'dist/backend/lambda.js')).BINARY_CONTENT_TYPES } };
+console.log('adapter options:', JSON.stringify(options), '\n');
+
+const handler = serverlessExpress({ app, ...options });
 
 const event = (rawPath) => ({
   version: '2.0',

@@ -159,7 +159,7 @@ The open questions from the proposal, as answered.
 
 ## Open questions
 
-1. Fonts on Lambda. The adapter serves woff2 files broken and the fix is one setting in `src/backend/lambda.ts`. See "Fonts on Lambda" in `notes.md`. It has been reproduced locally and not yet checked on `reference-architecture-lambda.603.nz`.
+1. Fonts on Lambda. Left at its defaults the adapter serves woff2 files broken. `src/backend/lambda.ts` now tells it that `font/*` is binary, and `lambda.spec.ts` pins that. See "Fonts on Lambda" in `notes.md`. It is checked locally and not yet on `reference-architecture-lambda.603.nz`.
 2. Bundle weight. The Auth0 SDK's own minified build is 171.8 kB, a large share of the 417.2 kB, and the two magic-link deployments never run it. Loading `auth/OidcApp.tsx` with a dynamic import would take it out of their first load. It is still one build and one set of files. Not measured and not done.
 
 ## Bundle size
@@ -176,5 +176,5 @@ After: 417.2 kB of JavaScript (127.7 kB gzipped) and 27.4 kB of CSS (6.1 kB gzip
 | Every state in `audit.md`, magic link, OIDC and `none`, both themes | Built |
 | Shared signed-in view | Built. `App.tsx` and `auth/OidcApp.tsx` hold only their own auth |
 | Verification at 390, 768, 1280 and 1920 | Done with `docs/design/tools/shoot.mjs`: 32 states, 256 captures, no sideways overflow, no target under 44px at 390 or 768, no console error under the Helmet policy. Also run against the real backend on DynamoDB Local, where `pnpm run validate` passes |
-| Fonts on the two Lambda deployments | Open. Needs the backend setting above, then a check on the deployed site |
+| Fonts on the two Lambda deployments | Fixed in `lambda.ts`. To be checked on the deployed sites after the first deploy |
 | Deploy | Not done |

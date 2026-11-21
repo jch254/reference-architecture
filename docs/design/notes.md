@@ -32,11 +32,15 @@ In this repo each file is named for what it contains, so `src/frontend/src/style
 
 ## Fonts on Lambda
 
-The Lambda adapter will serve the four woff2 files broken. `@codegenie/serverless-express` returns a body as base64 only when the response has a `content-encoding` of gzip, deflate or br, or a content type matching `image/*`. `lambda.ts` passes it no `binarySettings`, so a `font/woff2` response is turned into a UTF-8 string and arrives about 1.8 times its size and unreadable. The avatar, the favicons and the Open Graph image are `image/*` and come through intact.
+Fixed in `src/backend/lambda.ts` on 21 November 2026, with the owner's approval. Still to be confirmed on the deployed Lambda.
 
-This was reproduced locally, not on the deployed Lambda: `node docs/design/tools/lambda-static.mjs` runs the adapter with the options `lambda.ts` uses in front of `express.static` and compares every file in `src/frontend/dist` with what comes back. Four files are broken and twelve are intact. With `binarySettings: { contentTypes: ['image/*', 'font/*'] }` all sixteen are intact (`ADAPTER_OPTIONS='{"binarySettings":{"contentTypes":["image/*","font/*"]}}' node docs/design/tools/lambda-static.mjs`).
+Left at its defaults, the Lambda adapter serves the four woff2 files broken. `@codegenie/serverless-express` returns a body as base64 only when the response has a `content-encoding` of gzip, deflate or br, or a content type matching `image/*`. `lambda.ts` passed it no `binarySettings`, so a `font/woff2` response was turned into a UTF-8 string and arrived about 1.8 times its size and unreadable. The avatar, the favicons and the Open Graph image are `image/*` and came through intact.
 
-Nothing in the backend has been changed. Until `lambda.ts` passes that setting, `reference-architecture-auth0.603.nz` and `reference-architecture-lambda.603.nz` will reject the fonts and set the page in the fallback stack (`system-ui` and `ui-monospace`). The page works and the layout holds, but it is not in the family faces. The ECS deployment serves files straight from Express and is not affected. Cloudflare caches `/assets` as immutable, so a broken font cached at the edge has to be purged after the fix, or the fix has to ship with a build that changes the font file names.
+`lambda.ts` now passes `binarySettings: { contentTypes: BINARY_CONTENT_TYPES }`, which is `image/*` and `font/*`. `lambda.spec.ts` pins it: a font and an image come back byte for byte, text stays text and the adapter's defaults still break a font, so the test says if the setting ever stops being needed.
+
+It was reproduced and checked locally, not on the deployed Lambda. `node docs/design/tools/lambda-static.mjs` runs the adapter with the settings from the built handler in front of `express.static` and compares every file in `src/frontend/dist` with what comes back: all sixteen are intact. `ADAPTER_OPTIONS='{}' node docs/design/tools/lambda-static.mjs` runs it at the adapter's defaults: four files broken, twelve intact.
+
+The fonts and the fix ship in the same branch, so no broken font has been served or cached at the Cloudflare edge. After the first deploy, fetch a woff2 file from `reference-architecture-lambda.603.nz` and `reference-architecture-auth0.603.nz` and compare its size with the file in `dist/assets`. The ECS deployment serves files straight from Express and was never affected.
 
 ## Out of date after the redesign
 
