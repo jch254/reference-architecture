@@ -22,6 +22,14 @@ The README's list of live demos labels the first one "ECS Fargate" and the third
 
 The README and `docs/architecture.md` use em dashes and Oxford commas throughout. They are outside this work apart from the badge lines.
 
+## Fonts
+
+The two Spline Sans Mono files carry each other's names. `spline-sans-mono-latin.woff2` (20.7 kB) holds the Latin Extended glyphs and, of ASCII, only the space and `A`. `spline-sans-mono-latin-ext.woff2` (36.5 kB) holds ASCII and Latin-1. The Schibsted Grotesk pair is named correctly. The same two files, byte for byte, are in `studiodaw/src/frontend/public/fonts`, `namaste/src/frontend/public/fonts` and `jch254dotcom/public/fonts`, and each repo's `fonts.css` gives the file called `latin` the Latin `unicode-range`. A browser therefore fetches the Latin Extended file for ASCII, finds no glyph and falls through to the next family, so mono text on Studio, Namaste and jch254.com is set in the system mono (SF Mono on a Mac). Checked by reading each file's character map and by rendering one line three ways in Chromium.
+
+The proofs have the same fault. `proofs/html/fonts/mono.woff2` is the 20.7 kB file, so the mono in the eight proof screenshots is a fallback face and not Spline Sans Mono. Measured in Chromium on this Mac, a line set in Spline Sans Mono is 0.3% narrower than the same line in the fallback, so the measurements in the proofs hold.
+
+In this repo each file is named for what it contains, so `src/frontend/src/styles/fonts/spline-sans-mono-latin.woff2` is the 36.5 kB file. The other three repos have not been touched. `direction.md` gives the first-load font weight as 46.8 kB and 20.7 kB. With the right file it is 46.8 kB and 36.5 kB.
+
 ## Frontend
 
 When `/api/config` fails, `Root.tsx` renders the magic-link app with no sign that anything went wrong. On an OIDC deployment that shows an email form that cannot work.

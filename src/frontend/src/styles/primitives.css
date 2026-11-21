@@ -1,0 +1,1007 @@
+/* Primitives: the parts every page in the 603 family is built from. Screen
+   styles load after this file and may adjust layout, never colour or shape.
+   Class names follow Namaste where the part exists there.
+
+   The first half is a copy of jch254dotcom/src/styles/primitives.css, which
+   holds the source of truth. Left out, because only the two sites use them:
+   the post list, the featured product, the screenshot, the index, the
+   addresses and the stack line. The avatar rule moved to demo/demo.css with
+   its two image files. What this repo adds starts at "Added for this repo". */
+
+/* ------------------------------------------------------------------ page */
+
+/* The measure: 1296px between two fluid gutters. */
+.wrap {
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* A section in two columns. The modifier sets the columns. */
+.split {
+  display: grid;
+  column-gap: var(--col-gap);
+  align-items: start;
+}
+
+.split-lead {
+  grid-template-columns: minmax(0, 620px) 1fr;
+}
+
+.split-head {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: end;
+}
+
+.split-flow {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  height: var(--header-h);
+}
+
+.site-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The site switch names the sites. The current one carries the node and the
+   title weight, so the state never rests on colour alone. */
+.site-switch {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: var(--text-body);
+  letter-spacing: -0.01em;
+}
+
+.site-switch a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--ink-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-switch a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.site-switch a[aria-current] {
+  color: var(--ink);
+  font-weight: var(--weight-title);
+}
+
+.site-switch a[aria-current]::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: var(--radius-node);
+  background: var(--green);
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.site-nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: var(--text-3);
+}
+
+.site-nav-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.site-nav-links a:hover,
+.site-nav-links a[aria-current] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--target);
+  height: var(--target);
+  margin-right: -12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* The icon shows the theme a press will switch to. */
+.theme-toggle .icon-sun,
+[data-theme="dark"] .theme-toggle .icon-moon {
+  display: none;
+}
+
+[data-theme="dark"] .theme-toggle .icon-sun {
+  display: block;
+}
+
+/* ------------------------------------------------------------------ type */
+
+.h1 {
+  font-size: clamp(2.5rem, 4.6vw, var(--text-9));
+  font-weight: var(--weight-display);
+  line-height: 1.02;
+  letter-spacing: var(--tracking-display);
+}
+
+/* Each line is its own block, broken where the sentence breathes. */
+.h1 span {
+  display: block;
+}
+
+.h2 {
+  font-size: clamp(1.75rem, 3.1vw, var(--text-8));
+  font-weight: var(--weight-display);
+  line-height: 1.06;
+  letter-spacing: var(--tracking-h2);
+  text-wrap: balance;
+}
+
+.lede {
+  max-width: 30em;
+  font-size: var(--text-5);
+  line-height: var(--leading-lede);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.body {
+  max-width: 34em;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* A link inside a sentence. */
+.lede a,
+.body a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 4px;
+}
+
+.lede a:hover,
+.body a:hover {
+  color: var(--green-ink);
+  text-decoration-color: currentColor;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-h);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-3);
+  font-weight: var(--weight-display);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+
+/* Primary is ink. Green is never a button colour. */
+.btn-primary {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--ink) 86%, var(--page));
+}
+
+/* ----------------------------------------------------------------- links */
+
+/* Text link: the second action beside a button. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--weight-title);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.link:hover {
+  color: var(--green-ink);
+}
+
+/* Quiet link: addresses, the footer, the other deployments. */
+.link-quiet {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 4px;
+}
+
+.link-quiet:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+
+/* One primary button, then text links. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 28px;
+}
+
+/* ------------------------------------------------------------------ node */
+
+/* The node means current: the site you are on, the deployment you are on,
+   the record you have selected, an API that is answering. It always sits
+   beside a word. */
+.node {
+  display: inline-block;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-node);
+  background: var(--green);
+}
+
+/* A group inside a page: label and count, no rule. */
+.section-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-height: 28px;
+  font-size: var(--text-2);
+  font-weight: var(--weight-title);
+  line-height: 28px;
+  color: var(--ink);
+}
+
+.section-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------- ledger */
+
+/* The ledger. A row is a fixed grid: a mono margin that holds the one fact
+   the list is about, a name, one line of text. */
+.ledger {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.ledger-row {
+  display: grid;
+  grid-template-columns: var(--ledger-margin) var(--ledger-name) minmax(0, 1fr);
+  align-items: baseline;
+  padding: 14px 0;
+}
+
+.ledger-margin {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+
+.ledger-name {
+  font-size: var(--text-row);
+  font-weight: var(--weight-title);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-row);
+}
+
+.ledger-text {
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* Node, status, a second fact. The status is always written beside the
+   node. */
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 32px;
+  padding-block: 28px 40px;
+  font-size: var(--text-2);
+  color: var(--ink-3);
+}
+
+.site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 20px;
+  list-style: none;
+}
+
+.site-footer-legal {
+  flex: 1 1 100%;
+}
+
+/* ----------------------------------------------------------------- narrow */
+
+@media (max-width: 980px) {
+  .site-nav-links {
+    display: none;
+  }
+
+  .split-lead,
+  .split-head,
+  .split-flow {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-xl);
+    align-items: start;
+  }
+
+  .ledger-row {
+    grid-template-columns: var(--ledger-margin) minmax(0, 1fr);
+  }
+
+  .ledger-name,
+  .ledger-text {
+    grid-column: 2;
+  }
+
+  .site-footer-links a,
+  .site-footer-source {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target);
+  }
+
+  .site-footer-links {
+    row-gap: 0;
+  }
+}
+
+/* ============================================================================
+   Added for this repo. Each part is listed under "Added here" in
+   docs/design/direction.md with the precedent it extends.
+   ========================================================================= */
+
+/* ------------------------------------------------------------------ type */
+
+/* The title of an app view. Namaste's view title: --text-7 at the title
+   weight. */
+.view-title {
+  font-size: var(--text-7);
+  font-weight: var(--weight-title);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-title);
+}
+
+/* A paragraph inside an app view: the UI size on the lede's leading. */
+.text {
+  max-width: 36em;
+  font-size: var(--text-3);
+  line-height: var(--leading-lede);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* Help under a field, notes under a readout. */
+.small {
+  font-size: var(--text-2);
+  line-height: var(--leading-lede);
+  color: var(--ink-3);
+}
+
+/* The status line's second fact. */
+.status-fact {
+  color: var(--ink-3);
+}
+
+/* The second fact sits a step further from the status than the node does. */
+.status > .status-fact {
+  margin-left: var(--space-ms);
+}
+
+/* The source in the footer, written as an address. */
+.site-footer-source {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+}
+
+/* A section label with something on its right, such as a Clear button. */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 28px;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary:disabled:hover {
+  background: var(--ink);
+}
+
+/* Namaste's ghost button: no fill until it is hovered. */
+.btn-ghost {
+  min-height: var(--control-h-sm);
+  padding: 0 8px;
+  color: var(--ink-2);
+  font-size: var(--text-2);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+/* Namaste's icon button. */
+.icon-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--icon-btn);
+  height: var(--icon-btn);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+
+.icon-btn:hover {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  color: var(--ink);
+}
+
+.icon-btn svg {
+  pointer-events: none;
+}
+
+/* An icon button inside a line of mono text keeps the pointer size, so the
+   line keeps its height. The pad widens what a finger can hit to 44px
+   without moving anything, as the ledger names do on jch254.com. */
+.icon-btn-inline {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-btn-inline::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+/* ---------------------------------------------------------------- inputs */
+
+/* Namaste's filled input. The fill is the boundary. */
+.field {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-h-sm);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--field);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-3);
+  outline: none;
+}
+
+.field::placeholder,
+.baseline-field input::placeholder,
+.quick-add input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.field:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 0;
+}
+
+/* The base line field: Namaste's workspace field. One typed value in mono on
+   a 2px ink rule, with the page's primary action at its end. */
+.baseline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.baseline-label {
+  font-size: var(--text-3);
+  font-weight: var(--weight-title);
+}
+
+.baseline-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 56px;
+  padding: 8px 0;
+  border-bottom: 2px solid var(--ink);
+}
+
+.baseline-field input {
+  flex: 1 1 160px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-5);
+}
+
+/* Focus shows on the whole field: the rule doubles. */
+.baseline-field:focus-within {
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+/* The same block with a button and no field, where signing in happens
+   somewhere else. */
+.baseline-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* Quick add: Namaste's. A 16px field with a plus where the new row's margin
+   will be, on a 1px ink rule that thickens while the field holds focus. */
+.quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.quick-add-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-ms);
+  min-height: 56px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.quick-add-row:focus-within {
+  box-shadow: 0 1px 0 var(--ink);
+}
+
+.quick-add-plus {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  color: var(--ink-2);
+}
+
+.quick-add input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-4);
+}
+
+/* The mono slot that holds Namaste's syntax key. */
+.quick-add-hint {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.quick-add-row .btn-ghost {
+  margin-right: -8px;
+  font-size: var(--text-3);
+}
+
+/* Below 980px the hint drops under the rule. */
+.quick-add-hint-narrow {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .quick-add-hint-wide {
+    display: none;
+  }
+
+  .quick-add-hint-narrow {
+    display: block;
+  }
+}
+
+/* What went wrong, under the control it belongs to. Always a sentence, so
+   it never rests on colour. */
+.error {
+  font-size: var(--text-2);
+  line-height: var(--leading-lede);
+  color: var(--alert);
+}
+
+/* The same, where it stands in for a whole view. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-ms);
+  max-width: 36em;
+  padding: 14px var(--space-md);
+  border-radius: var(--radius);
+  background: var(--alert-wash);
+  color: var(--alert);
+  font-size: var(--text-3);
+  line-height: var(--leading-lede);
+}
+
+.notice .btn-ghost {
+  margin-left: -8px;
+  color: inherit;
+}
+
+/* -------------------------------------------------------------- app rows */
+
+/* Namaste's list row: a fixed height, a hover fill that bleeds past the text
+   and the 4px radius. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.row {
+  --bleed: 10px;
+  position: relative;
+  min-height: var(--row-h);
+  margin: 0 calc(-1 * var(--bleed));
+  padding: 0 var(--bleed);
+  border-radius: var(--radius);
+}
+
+.row-hover:hover,
+.row-hover:focus-within {
+  background: var(--hover);
+}
+
+/* The row the page is about: the deployment you are on, the record you have
+   selected. It keeps the hover fill and takes the node and the title weight.
+   The bleed is 16px so the node sits inside the fill and the names stay on
+   the page's left edge. */
+.row-wide {
+  --bleed: 16px;
+}
+
+.row-current {
+  background: var(--hover);
+}
+
+.row-current::before {
+  content: '';
+  position: absolute;
+  top: var(--node-y, 50%);
+  left: 5px;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: var(--radius-node);
+  background: var(--green);
+}
+
+/* ------------------------------------------------------------------ code */
+
+/* Code in a sentence. Filled with --field, as on jch254.com, and never
+   broken across lines. */
+code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--field);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+/* A block of mono: a response body, a key. Filled with --side, as jch254.com
+   sets code blocks. */
+.code-block {
+  padding: 14px var(--space-md);
+  border-radius: var(--radius);
+  background: var(--side);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-code);
+}
+
+/* JSON in three inks and no hue: keys in ink, values in ink 2, punctuation
+   in ink 3. */
+.json {
+  overflow-wrap: anywhere;
+}
+
+.json-line {
+  padding-left: calc(var(--depth, 0) * 2ch);
+}
+
+.json-value {
+  color: var(--ink-2);
+}
+
+.json-mark {
+  color: var(--ink-3);
+}
+
+/* A key on the keyboard. Namaste's. */
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--field);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Keys and values read from the API: a mono key in ink 3, the value in ink. */
+.kv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kv-row {
+  display: grid;
+  grid-template-columns: var(--kv-key, 116px) minmax(0, 1fr);
+  align-items: baseline;
+}
+
+.kv dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  color: var(--ink-3);
+}
+
+.kv dd {
+  font-family: var(--font-mono);
+  font-size: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------------- toast */
+
+/* Namaste's toast: an ink fill at the foot of the window with one outlined
+   action. */
+.toasts {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-ms);
+  min-height: var(--control-h);
+  padding: 6px 8px 6px 14px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  box-shadow: var(--lift-sm);
+  color: var(--on-ink);
+  font-size: var(--text-2);
+  font-weight: 500;
+  pointer-events: auto;
+  animation: toast-in var(--duration-standard) var(--ease-standard);
+}
+
+.toast-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toast-action {
+  flex: none;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--on-ink) 50%, transparent);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--on-ink);
+  font-size: var(--text-2);
+  font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.toast-action:hover {
+  background: color-mix(in srgb, var(--on-ink) 16%, transparent);
+}
+
+/* The ring is ink everywhere else. On the ink fill it takes the page colour. */
+.toast-action:focus-visible {
+  outline-color: var(--on-ink);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (pointer: coarse), (max-width: 720px) {
+  .toasts {
+    right: var(--gutter);
+    left: var(--gutter);
+  }
+
+  .toast {
+    justify-content: space-between;
+  }
+
+  .toast-action {
+    min-height: var(--target);
+    padding: 0 14px;
+  }
+}
+
+/* ------------------------------------------------------------------- tip */
+
+/* The exact value behind a rounded one, such as a timestamp. It takes the
+   toast's ink fill and shows on hover and on keyboard focus. */
+.tip {
+  position: relative;
+}
+
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 10;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  font-weight: 400;
+  line-height: 18px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.tip:hover::after,
+.tip-host:has(:focus-visible) .tip::after {
+  opacity: 1;
+}
+
+/* ----------------------------------------------------------------- narrow */
+
+@media (max-width: 980px) {
+  /* "Reference Architecture" is a longer name than a domain. The switch
+     closes up so it still fits beside the avatar on a phone. */
+  .site-brand {
+    gap: 10px;
+  }
+
+  .site-switch {
+    gap: 14px;
+  }
+
+  .status {
+    flex-wrap: wrap;
+    row-gap: var(--space-xs);
+  }
+
+  /* When the second fact wraps it lines up under the status, clear of the
+     node. */
+  .status > .status-fact {
+    margin-left: 14px;
+  }
+}
