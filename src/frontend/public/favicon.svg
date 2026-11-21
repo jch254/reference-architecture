@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .tile { fill: #141a17; }
+    .mark { fill: #fbfbf8; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #ecefe9; }
+      .mark { fill: #0d110f; }
+    }
+  </style>
+  <rect class="tile" width="32" height="32" rx="4"/>
+  <path class="mark" d="M10.25 23.91L10.25 8.09L14.11 8.09L14.11 11.61L13.94 11.17Q14.69 9.42 16.06 8.57Q17.43 7.71 19.01 7.71Q19.47 7.71 19.92 7.78Q20.38 7.86 20.81 8.03L20.49 11.49Q19.55 11.22 18.69 11.22Q18.02 11.22 17.25 11.46Q16.48 11.69 15.8 12.32Q15.12 12.94 14.68 14.08Q14.25 15.22 14.25 17.01L14.25 23.91Z"/>
+  <circle cx="18.85" cy="21.01" r="2.9" fill="#2bb67d"/>
+</svg>
