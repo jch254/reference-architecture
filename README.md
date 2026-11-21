@@ -14,8 +14,9 @@ Minimal, production-ready backend architecture.
 - [reference-architecture-auth0.603.nz](https://reference-architecture-auth0.603.nz) — Auth0/OIDC backend demo on Lambda (container image)
 - [reference-architecture-lambda.603.nz](https://reference-architecture-lambda.603.nz) — same app on Lambda (container image)
 
-Each demo shows which compute backend is serving it (a "Running on …" badge in the
-header), detected at runtime — same bundle, different deployment.
+Each demo shows what is serving it in a "This deployment" readout at the top of the
+page: the auth provider and the compute backend, read at runtime from
+`GET /api/config`. Same bundle, different deployment.
 
 ---
 
@@ -133,8 +134,8 @@ they are never baked into the function config or Terraform state.
 magic-link profile — same app and frontend, only the compute backend differs. The
 backend detects its platform at runtime (`AWS_LAMBDA_FUNCTION_NAME` vs ECS's
 `ECS_CONTAINER_METADATA_URI_V4`) and surfaces it via `GET /api/config`, so the
-header's "Running on …" badge needs no per-deployment config — the same bundle
-shows "AWS Lambda" or "ECS Fargate" depending on where it runs.
+page's "This deployment" readout needs no per-deployment config. The same bundle
+shows "Lambda" or "ECS Fargate" depending on where it runs.
 
 See [infrastructure/terraform-lambda/README.md](infrastructure/terraform-lambda/README.md)
 for the bootstrap — a container-image Lambda can't be created until its image is in

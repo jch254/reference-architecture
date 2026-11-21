@@ -1,0 +1,796 @@
+/* The demo's own layout: where its parts sit and the grids inside them. It
+   loads after the system and sets no colour or shape of its own. Every
+   colour, size and radius here is a token from src/styles. Delete this
+   folder and the system, in src/styles and src/ui, is left whole. */
+
+/* The family mark. A background image, so only the file for the theme in use
+   is fetched. Vite fingerprints both into /assets. */
+.avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: url('./avatar.webp') center / cover no-repeat;
+}
+
+[data-theme="dark"] .avatar {
+  background-image: url('./avatar-dark.webp');
+}
+
+.demo-main {
+  flex: 1;
+}
+
+/* ------------------------------------------------------------- signed out */
+
+/* The top of the page: copy on the left edge, the product on the right. */
+.hero,
+.loading-page {
+  padding-top: 56px;
+}
+
+.hero .status {
+  min-height: 28px;
+}
+
+.hero-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+}
+
+/* The address a link was sent to, inside the lede. */
+.lede strong {
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+
+/* "Send link" and "Sending" take the same room, so the field does not move. */
+.sign-in-submit {
+  min-width: 98px;
+}
+
+/* A text link that is a button: the one action of the "check your email"
+   state. */
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------- deployment readout */
+
+/* The family ledger row with a mono key in the margin. */
+.readout-section,
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.readout {
+  --ledger-margin: 88px;
+  --ledger-name: 148px;
+}
+
+/* The node sits on the x-height of the word it is beside, so the word keeps
+   its baseline with the rest of the row. */
+.readout-live .node {
+  margin-right: var(--space-sm);
+  vertical-align: middle;
+}
+
+/* ------------------------------------------------------------- request log */
+
+/* Status, method, path and duration on the app row. The whole row is one
+   button. */
+.log-row {
+  display: grid;
+  grid-template-columns: 44px 64px minmax(0, 1fr) auto 20px;
+  align-items: center;
+  column-gap: var(--space-sm);
+  width: calc(100% + 2 * var(--bleed));
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+.log-row-open {
+  background: var(--hover);
+}
+
+.log-status {
+  font-weight: var(--weight-strong);
+}
+
+/* A failed request keeps its number, so the state never rests on colour. */
+.log-status-failed {
+  color: var(--alert);
+}
+
+.log-method {
+  color: var(--ink-2);
+}
+
+.log-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-time {
+  color: var(--ink-3);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.log-chevron {
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+
+.log-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-ms);
+  margin: 4px 0 8px;
+}
+
+.log-meta > div {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+}
+
+.log-meta dt,
+.log-part {
+  color: var(--ink-3);
+}
+
+.log-meta dd {
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* A copy button at the end of a mono value keeps the line's height. */
+.log-meta .with-copy {
+  align-items: center;
+}
+
+/* A long body, such as a list of fifty records, scrolls inside the entry. */
+.log-body {
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
+.log-clear {
+  margin-right: -8px;
+}
+
+.log-empty {
+  padding-block: var(--space-sm);
+}
+
+/* --------------------------------------------------------------- comparison */
+
+/* The family table: 13px labels at the title weight over one 1px ink line
+   and no hairline under the rows. */
+.comparison {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  padding-top: var(--section);
+}
+
+/* The proof's columns at the full measure, 392, 200, 264, 344 and 96px, kept
+   in proportion below it. The floors are the longest value in each column
+   that cannot wrap: a host name, internal_magic_link and the compute line. */
+.comparison-cols {
+  display: grid;
+  grid-template-columns:
+    minmax(316px, 392fr) minmax(150px, 200fr) minmax(176px, 264fr) minmax(150px, 344fr)
+    minmax(56px, 96fr);
+}
+
+.comparison-labels {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ink);
+  font-size: var(--text-2);
+  font-weight: var(--weight-title);
+}
+
+.comparison-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.comparison-row,
+.comparison-item {
+  --node-y: 25px;
+  padding-block: 14px;
+}
+
+.comparison-row {
+  align-items: start;
+}
+
+.comparison-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding-right: var(--space-ms);
+}
+
+.comparison-host {
+  font-size: var(--text-4);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.comparison-host-current {
+  font-weight: var(--weight-title);
+}
+
+/* A value that matches the deployment you are on recedes. */
+.comparison-value {
+  font-size: var(--text-4);
+  color: var(--ink-3);
+}
+
+/* One that differs takes ink and the strong weight. */
+.comparison-differs {
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+}
+
+.comparison-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  color: var(--ink-3);
+}
+
+.comparison-open {
+  display: flex;
+  justify-content: flex-end;
+  font-size: var(--text-3);
+}
+
+/* --------------------------------------------------------------- explainer */
+
+.explainer {
+  padding-block: var(--section);
+}
+
+.explainer-rows {
+  --ledger-margin: 40px;
+  --ledger-name: 132px;
+}
+
+/* --------------------------------------------------------------- signed in */
+
+/* One mono line under the header: this deployment on the left, the account
+   on the right. */
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--space-lg);
+  padding-block: 20px 36px;
+}
+
+.account-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-ms);
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  color: var(--ink-2);
+}
+
+.account-user > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-user .btn-ghost {
+  margin-right: -8px;
+}
+
+/* What you do on the left, what the system did with it on the right. The
+   second row takes the height the right column needs, so identity sits
+   directly under the records. */
+.signed-in {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-rows: auto 1fr;
+  column-gap: var(--col-gap);
+  align-items: start;
+  padding-bottom: 96px;
+}
+
+.signed-in > :first-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.signed-in-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.signed-in > .identity {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: 56px;
+}
+
+/* ----------------------------------------------------------------- records */
+
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.records-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.records-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.records-count,
+.records-note,
+.record-id,
+.record-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.records-note {
+  display: flex;
+  align-items: center;
+  min-height: var(--row-h);
+}
+
+.records-empty {
+  padding-block: var(--space-sm);
+}
+
+/* A record on one line: the id in the mono margin, the name, when it was
+   created, then the two actions. */
+.records-wide .record {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 104px calc(2 * var(--icon-btn) + 16px);
+  align-items: center;
+}
+
+/* The name's button fills its column, so the whole name is a target. It
+   stops short of the time so its focus ring does not run over it. */
+.records-wide .record-name {
+  margin-right: var(--space-ms);
+}
+
+.record-name {
+  min-width: 0;
+  min-height: var(--row-h);
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-3);
+  font-weight: var(--weight-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-current .record-name {
+  font-weight: var(--weight-title);
+}
+
+/* Not yet answered for. It cannot be selected until it has an id. */
+.record-pending .record-name {
+  color: var(--ink-2);
+  cursor: default;
+}
+
+.record-time {
+  justify-self: start;
+  font-size: var(--text-2);
+  color: var(--ink-2);
+}
+
+.record-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+/* With a pointer the actions wait until the row is hovered, focused,
+   selected or being renamed. On touch they are always there. */
+@media (hover: hover) and (pointer: fine) {
+  .records-wide .record:not(.row-current, .record-editing, :hover, :focus-within) .record-actions {
+    opacity: 0;
+  }
+}
+
+/* The rename field takes the name's place. Its text starts where the name
+   did, so the fill runs 10px into the margin. */
+.record-edit {
+  min-height: 28px;
+  margin: 0 var(--space-ms) 0 -10px;
+  font-weight: var(--weight-strong);
+}
+
+.records-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--space-md);
+  margin-top: var(--space-xs);
+  font-size: var(--text-2);
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------- key readout */
+
+.key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-ms);
+}
+
+.key-inline {
+  padding: 4px 0 var(--space-md);
+}
+
+/* PK and SK in a --side block. The fixed prefixes are ink 3 and the ids are
+   ink, which shows how the key is composed. */
+.key-block {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 12px 8px 12px 16px;
+  font-size: var(--text-1);
+  line-height: 1.7;
+}
+
+.key-lines {
+  flex: 1;
+  min-width: 0;
+}
+
+.key-line {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: baseline;
+}
+
+.key-value {
+  overflow-wrap: anywhere;
+}
+
+.key-fixed {
+  color: var(--ink-3);
+}
+
+/* Where each id came from. */
+.key-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.key-legend li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: baseline;
+}
+
+.key-legend li > :first-child {
+  font-family: var(--font-mono);
+  font-size: var(--text-1);
+  color: var(--ink-3);
+}
+
+.key-legend li > :last-child {
+  font-size: var(--text-2);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------------- identity */
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-ms);
+}
+
+.identity > .text {
+  margin-bottom: var(--space-xs);
+}
+
+/* Two key and value lists side by side, each headed by its name and the
+   endpoint it came from. */
+.identity-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.identity-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.identity-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-sm);
+  font-size: var(--text-4);
+  font-weight: var(--weight-title);
+  letter-spacing: -0.01em;
+}
+
+.identity-name .section-count {
+  letter-spacing: 0;
+}
+
+.identity-principal {
+  --kv-key: 88px;
+}
+
+.identity-user {
+  --kv-key: 116px;
+}
+
+/* ------------------------------------------------------------ touch density */
+
+/* The copy button is 44px here, so the key block gives up its own padding
+   to it and the lines keep theirs. */
+@media (pointer: coarse), (max-width: 720px) {
+  .key-block {
+    padding: 6px 0 6px 14px;
+  }
+
+  .key-lines {
+    padding-block: var(--space-sm);
+  }
+}
+
+/* ------------------------------------------------------------------ compact */
+
+/* From 981 to 1279px the page keeps two columns, but each is too narrow for
+   what the full measure sets side by side. The hero splits evenly, the
+   readout stacks its name over its text and the identity lists stack. */
+@media (min-width: 981px) and (max-width: 1279px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* The status line can wrap here. Its second fact lines up under the host. */
+  .status > .status-fact {
+    margin-left: 14px;
+  }
+
+  .readout .ledger-row {
+    grid-template-columns: var(--ledger-margin) minmax(0, 1fr);
+  }
+
+  .readout .ledger-name,
+  .readout .ledger-text {
+    grid-column: 2;
+  }
+
+  .identity-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .identity-principal,
+  .identity-user {
+    --kv-key: 132px;
+  }
+}
+
+/* ------------------------------------------------------------------- narrow */
+
+@media (max-width: 980px) {
+  .hero,
+  .loading-page {
+    padding-top: var(--space-xl);
+  }
+
+  .hero {
+    row-gap: var(--space-3xl);
+  }
+
+  .readout {
+    --ledger-margin: 76px;
+  }
+
+  .log-row {
+    grid-template-columns: 36px 54px minmax(0, 1fr) auto 20px;
+  }
+
+  .log-meta > div {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  /* The comparison is a list: a host, its three values on one mono line and
+     a sentence on what differs. */
+  .comparison {
+    gap: var(--space-lg);
+  }
+
+  .comparison-head {
+    row-gap: var(--space-md);
+  }
+
+  .comparison-list {
+    gap: var(--space-xs);
+  }
+
+  .comparison-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs);
+  }
+
+  .comparison-item a.comparison-host {
+    display: flex;
+    align-items: center;
+    min-height: var(--target);
+    margin-block: -10px;
+  }
+
+  .comparison-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-1);
+    color: var(--ink-3);
+  }
+
+  .comparison-line .comparison-differs {
+    font-weight: 500;
+  }
+
+  .comparison-line > span + span::before {
+    content: '\00b7';
+    margin-right: var(--space-sm);
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+
+  .explainer {
+    row-gap: var(--space-xl);
+  }
+
+  .explainer-lead {
+    gap: 20px;
+  }
+
+  .explainer-rows {
+    --ledger-margin: 32px;
+  }
+
+  .explainer-rows .ledger-text {
+    margin-top: 2px;
+  }
+
+  .account {
+    padding-block: 12px var(--space-lg);
+  }
+
+  /* One column: the records, the log, then identity. */
+  .signed-in {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2xl);
+    padding-bottom: 56px;
+  }
+
+  .signed-in > .identity {
+    margin-top: 0;
+  }
+
+  .records {
+    gap: var(--space-md);
+  }
+
+  /* A record on two lines: the name, then its id and age in mono. The key
+     opens inside the row. */
+  .records-narrow .record {
+    --node-y: 19px;
+  }
+
+  .record-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: 56px;
+  }
+
+  .records-narrow .record-name {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .record-title {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-4);
+  }
+
+  .record-sub {
+    display: flex;
+    gap: var(--space-ms);
+    font-weight: 400;
+  }
+
+  .records-narrow .record-time {
+    font-size: inherit;
+    color: inherit;
+  }
+
+  .records-narrow .record-edit {
+    min-height: var(--control-h);
+    font-size: var(--text-4);
+  }
+
+  .key-legend li {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .identity-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .identity-principal,
+  .identity-user {
+    --kv-key: 132px;
+  }
+}

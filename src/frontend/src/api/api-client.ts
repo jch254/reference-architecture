@@ -57,32 +57,109 @@ async function resolveToken(): Promise<string | null> {
   return getToken();
 }
 
+/**
+ * What an observer is told about one finished request. It never holds a
+ * credential: the Authorization header is replaced before the exchange is
+ * built, so no token leaves this module.
+ */
+export interface ApiExchange {
+  method: string;
+  path: string;
+  /** The HTTP status, or null when the request got no answer. */
+  status: number | null;
+  durationMs: number;
+  /** The x-request-id response header. */
+  requestId: string | null;
+  requestHeaders: Record<string, string>;
+  requestBody?: unknown;
+  /** The parsed JSON body, envelope included, when there was one. */
+  responseBody?: unknown;
+}
+
+export type ApiObserver = (exchange: ApiExchange) => void;
+
+export const REDACTED_AUTHORIZATION = 'Bearer [redacted]';
+
+const observers = new Set<ApiObserver>();
+
+/**
+ * Watch every request this client makes, for logging or metrics. Returns a
+ * function that stops watching. With no observer registered the client does
+ * no extra work.
+ */
+export function observeApi(observer: ApiObserver): () => void {
+  observers.add(observer);
+  return () => {
+    observers.delete(observer);
+  };
+}
+
+function redactHeaders(headers: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [
+      name,
+      name.toLowerCase() === 'authorization' ? REDACTED_AUTHORIZATION : value,
+    ]),
+  );
+}
+
+function notify(exchange: ApiExchange): void {
+  for (const observer of observers) {
+    try {
+      observer(exchange);
+    } catch {
+      // An observer must never break a request.
+    }
+  }
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
+  /** Let the request outlive the page, for a write sent as the page is hidden. */
+  keepalive?: boolean;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, headers = {} } = options;
+  const { method = 'GET', body, headers = {}, keepalive } = options;
 
   const token = await resolveToken();
+
+  const requestHeaders: Record<string, string> = {
+    ...(body !== undefined && { 'Content-Type': 'application/json' }),
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...headers,
+  };
 
   const init: RequestInit = {
     method,
     credentials: 'include',
-    headers: {
-      ...(body !== undefined && { 'Content-Type': 'application/json' }),
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...headers,
-    },
+    headers: requestHeaders,
     ...(body !== undefined && { body: JSON.stringify(body) }),
+    ...(keepalive && { keepalive }),
+  };
+
+  const started = performance.now();
+  const report = (res: Response | null, responseBody?: unknown) => {
+    if (observers.size === 0) return;
+    notify({
+      method,
+      path,
+      status: res ? res.status : null,
+      durationMs: Math.round(performance.now() - started),
+      requestId: res ? res.headers.get('x-request-id') : null,
+      requestHeaders: redactHeaders(requestHeaders),
+      ...(body !== undefined && { requestBody: body }),
+      ...(responseBody !== undefined && { responseBody }),
+    });
   };
 
   let res: Response;
   try {
     res = await fetch(path, init);
   } catch {
+    report(null);
     throw new ApiError('NETWORK_ERROR', 'Network request failed');
   }
 
@@ -93,6 +170,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     } catch {
       // Response body is not JSON
     }
+    report(res, errorBody);
     const error = errorBody?.error;
     throw new ApiError(
       error?.code ?? 'INTERNAL_ERROR',
@@ -102,9 +180,19 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     );
   }
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) {
+    report(res);
+    return undefined as T;
+  }
 
-  const json = await res.json();
+  let json: { data: T };
+  try {
+    json = await res.json();
+  } catch (err) {
+    report(res);
+    throw err;
+  }
+  report(res, json);
   return json.data;
 }
 
@@ -113,5 +201,6 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, options: Pick<RequestOptions, 'keepalive'> = {}) =>
+    request<T>(path, { method: 'DELETE', ...options }),
 };
