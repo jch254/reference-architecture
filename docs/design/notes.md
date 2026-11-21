@@ -28,7 +28,23 @@ The two Spline Sans Mono files carry each other's names. `spline-sans-mono-latin
 
 The proofs have the same fault. `proofs/html/fonts/mono.woff2` is the 20.7 kB file, so the mono in the eight proof screenshots is a fallback face and not Spline Sans Mono. Measured in Chromium on this Mac, a line set in Spline Sans Mono is 0.3% narrower than the same line in the fallback, so the measurements in the proofs hold.
 
-In this repo each file is named for what it contains, so `src/frontend/src/styles/fonts/spline-sans-mono-latin.woff2` is the 36.5 kB file. The other three repos have not been touched. `direction.md` gives the first-load font weight as 46.8 kB and 20.7 kB. With the right file it is 46.8 kB and 36.5 kB.
+In this repo each file is named for what it contains, so `src/frontend/src/styles/fonts/spline-sans-mono-latin.woff2` is the 36.5 kB file. The other three repos have not been touched. `direction.md` gave the first-load font weight as 46.8 kB and 20.7 kB. With the right file it is 46.8 kB and 36.5 kB.
+
+## Fonts on Lambda
+
+The Lambda adapter will serve the four woff2 files broken. `@codegenie/serverless-express` returns a body as base64 only when the response has a `content-encoding` of gzip, deflate or br, or a content type matching `image/*`. `lambda.ts` passes it no `binarySettings`, so a `font/woff2` response is turned into a UTF-8 string and arrives about 1.8 times its size and unreadable. The avatar, the favicons and the Open Graph image are `image/*` and come through intact.
+
+This was reproduced locally, not on the deployed Lambda: `node docs/design/tools/lambda-static.mjs` runs the adapter with the options `lambda.ts` uses in front of `express.static` and compares every file in `src/frontend/dist` with what comes back. Four files are broken and twelve are intact. With `binarySettings: { contentTypes: ['image/*', 'font/*'] }` all sixteen are intact (`ADAPTER_OPTIONS='{"binarySettings":{"contentTypes":["image/*","font/*"]}}' node docs/design/tools/lambda-static.mjs`).
+
+Nothing in the backend has been changed. Until `lambda.ts` passes that setting, `reference-architecture-auth0.603.nz` and `reference-architecture-lambda.603.nz` will reject the fonts and set the page in the fallback stack (`system-ui` and `ui-monospace`). The page works and the layout holds, but it is not in the family faces. The ECS deployment serves files straight from Express and is not affected. Cloudflare caches `/assets` as immutable, so a broken font cached at the edge has to be purged after the fix, or the fix has to ship with a build that changes the font file names.
+
+## Out of date after the redesign
+
+`docs/architecture.md` says the frontend "renders the existing magic-link UI unchanged" for `none` and `internal_magic_link` and that the default demo stays "byte-for-byte unaffected". The README says the same under "Auth0 frontend login" ("renders the existing magic-link demo UI unchanged"). Neither is true now: all three deployments render the new page, and `none` no longer shows a sign-in form. Only the two README lines about the "Running on" badge were changed.
+
+`index.html` gives `og:image` as `https://reference-architecture.603.nz/og.png`. Open Graph images need an absolute address and one bundle serves three hosts, so all three point at the first deployment. There is no `og:url` for the same reason. A product built from this repo needs to change that line.
+
+The redesign's readout and request log now show a failed `GET /api/config`, which the note under Frontend below says went unseen. The fallback itself is unchanged: the page still assumes magic link.
 
 ## Frontend
 

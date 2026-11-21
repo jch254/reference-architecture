@@ -1,6 +1,6 @@
 # Reference Architecture demo design direction
 
-Status: proposed on 21 November 2026. The two proofs are on the design canvas and nothing in `src/frontend` has changed yet. The system and build stages start once the direction is approved.
+Status: built on the `redesign` branch on 21 November 2026. The system, every state in `audit.md` and the verification pass are done. "Where the build is" at the end says what is left.
 
 Related files: `audit.md` lists every state the UI can be in and the tests that assert on copy or structure. `notes.md` records things that look broken or out of date and were left alone.
 
@@ -88,6 +88,25 @@ The system has no request log, key readout or deployment comparison. Namaste and
 11. Code in a sentence is filled with `--field`, as on jch254.com, and never breaks across lines.
 12. Header. The site switch shows `603.nz` and the current site. Below 980px the page links move to the footer, as they do on the other two sites.
 
+## Added in the build
+
+What the proofs did not draw. Namaste and Studio were checked for each one first.
+
+13. Touch rows are 44px, as the 390px proof draws the request log, not Namaste's 48px. A record row on a phone is two lines and 56px.
+14. The compact range. From 981 to 1279px the page keeps two columns, but the hero splits evenly, the deployment readout stacks its name over its text and the two identity lists stack. Without it the readout's text column is 2px wide at 1024px. The comparison's five columns keep the proof's proportions with a floor under each, so `internal_magic_link` never runs into the next column.
+15. Rename field. Namaste's filled input, 28px high, in the name's place. Its text starts where the name did, so the fill runs 10px into the margin. The two actions become a tick and a cross.
+16. Exact time. The list shows "2 min ago". On hover the timestamp the API returned shows above it in a small label with the toast's ink fill. Hover is not the only way to it: the key readout gains a `created` row with the same timestamp, which the keyboard and a finger reach by selecting the record. A label that appeared on keyboard focus was built first and removed, because it covered the row above on every arrow press.
+17. A focused row is not filled. Namaste fills a row on hover and on focus. Here the fill also means selected, so a focused row takes the ring only.
+18. Notice. An error that stands in for a whole view (the list did not load, the session is no longer valid, Auth0 is not configured) is a block on `--alert-wash` with `--alert` text at the 4px radius. An error that belongs to one control is a line of `--alert` text under it.
+19. Loading. A state that is waiting on one request shows the status line and names the request: "Loading the deployment config", "Checking for a session", "Waiting for Auth0". The list shows "Loading your records" in mono at the height of a row. There is no skeleton or spinner.
+20. A pending record. A record the API has not answered for yet shows "saving" in the margin where its id will be and cannot be selected.
+21. Copy button. Namaste's icon button with the copy glyph, which turns to a tick for a second and a half. Inside a line of mono it stays 24px and a pad widens the touch target to 44px. It is on the key and on the request id. It is not on the user id: with it the UUID no longer fits on one line at 1440px.
+22. The status line wraps. On a phone the second fact drops under the host and lines up with it, clear of the node.
+23. `AUTH_PROVIDER=none` and a missing Auth0 client id keep the sign-in block's place in the column: a label and a paragraph for the first, a notice for the second.
+24. Favicon. The family tile with an "r" from Schibsted Grotesk at weight 650, set at 30 units on the 32 unit tile and converted to outlines. The node sits on the baseline under the arm of the r. `docs/design/tools/assets.mjs` draws the PNG fallbacks and the Open Graph image from it.
+25. The undo toast stops its clock while the pointer or the keyboard is on it, and Ctrl or Cmd with Z undoes a held delete.
+26. The newest write opens in the request log by itself. Before any write, the signed-out page opens `GET /api/config`.
+
 ## Experience changes proposed
 
 Confirm or cut each one. "None" means the change uses what the API returns today.
@@ -126,15 +145,36 @@ Eight artboards on the design canvas: the signed-out page and the signed-in page
 
 Contrast in the proofs, lowest value across the surfaces each colour sits on: ink 14.4 light and 13.8 dark, ink 2 7.9 and 9.0, ink 3 5.2 and 5.5, alert 5.2 and 7.4, button text 17.0 and 16.4. The node is 2.5 on light paper, so it always sits beside a word.
 
+## Decisions
+
+The open questions from the proposal, as answered.
+
+1. Tenancy comes from `deployments.ts` for the three known hosts and the row is left out anywhere else. `/api/config` is unchanged.
+2. Expired and used links get one message that is true for both. `auth.controller.ts` is unchanged. A link with no token keeps its own message.
+3. The headline is "The baseline I copy when I start a product."
+4. A delete is held for five seconds in the browser while a toast offers "Undo". It is sent when the toast closes, when the page is hidden and before signing out.
+5. The selected record and the current deployment keep the row hover fill along with the node and the title weight.
+6. No guest session.
+7. Every row in "Experience changes proposed" is built.
+
 ## Open questions
 
-1. Tenancy in the readout. `/api/config` returns the auth provider and the compute backend and says nothing about tenant mode. Adding `tenantResolutionMode` to that response is one public field the backend already holds. Without it the value comes from `deployments.ts` for the three known hosts and the row is left out anywhere else, such as local development. Which do you want?
-2. Expired and used links. The web branch of `GET /api/auth/verify` redirects every failure to `/?auth=error&reason=consumed`, so the frontend cannot tell an expired link from a used one. I would write one message that is true for both. Telling them apart needs a change to `auth.controller.ts` and `auth.service.ts`.
-3. Headline. The proof says "The baseline I copy when I start a product." It is taken from how you describe the repo. Change it if you would put it differently.
-4. Undo on delete is done by holding the DELETE for five seconds in the browser. Nothing is added to the backend, and a record deleted just before the tab is killed may survive. The alternative is to delete at once and have "Undo" create a new record, which gives it a new id and a new key.
-5. The selected record's fill. The family uses `--hover` only for hover. Here the selected row keeps it so the row and the readout read as a pair. Say if you would sooner keep to the node and the weight.
-6. Fonts on Lambda. Two of the three deployments serve static files through `@codegenie/serverless-express` behind API Gateway. I have not yet confirmed that a woff2 file comes back intact that way. It gets checked on the Lambda demo before the build stage relies on it. The fonts will be imported from CSS so Vite puts them under `/assets` with the immutable cache header.
+1. Fonts on Lambda. The adapter serves woff2 files broken and the fix is one setting in `src/backend/lambda.ts`. See "Fonts on Lambda" in `notes.md`. It has been reproduced locally and not yet checked on `reference-architecture-lambda.603.nz`.
+2. Bundle weight. The Auth0 SDK's own minified build is 171.8 kB, a large share of the 417.2 kB, and the two magic-link deployments never run it. Loading `auth/OidcApp.tsx` with a dynamic import would take it out of their first load. It is still one build and one set of files. Not measured and not done.
 
 ## Bundle size
 
-Before, from the build in `src/frontend/dist`: 390.1 kB of JavaScript (117.5 kB gzipped) and 5.7 kB of CSS (1.6 kB gzipped), with no font files. The redesign adds two Latin woff2 files, 46.8 kB and 20.7 kB, cached as immutable assets. The after numbers are reported at the end of the build stage.
+Before, `main` at `5ce4a31` rebuilt on 21 November 2026: 390.1 kB of JavaScript (117.9 kB gzipped) and 5.7 kB of CSS (1.6 kB gzipped), with no font or image files.
+
+After: 417.2 kB of JavaScript (127.7 kB gzipped) and 27.4 kB of CSS (6.1 kB gzipped). That is 27.1 kB more JavaScript, or 9.8 kB gzipped, for the request log, the readouts, the comparison, optimistic writes and undo. The first load also fetches the two Latin fonts, 46.8 kB and 36.5 kB, one avatar (5.0 kB in light, 9.1 kB in dark) and `theme.js` (2.2 kB). The two Latin Extended fonts, 20.9 kB and 20.7 kB, are fetched only if a record's name needs them. Everything under `/assets` is served as immutable.
+
+## Where the build is
+
+| Stage | State |
+|---|---|
+| System: fonts, tokens, base, primitives, `ui/` | Built |
+| Every state in `audit.md`, magic link, OIDC and `none`, both themes | Built |
+| Shared signed-in view | Built. `App.tsx` and `auth/OidcApp.tsx` hold only their own auth |
+| Verification at 390, 768, 1280 and 1920 | Done with `docs/design/tools/shoot.mjs`: 32 states, 256 captures, no sideways overflow, no target under 44px at 390 or 768, no console error under the Helmet policy. Also run against the real backend on DynamoDB Local, where `pnpm run validate` passes |
+| Fonts on the two Lambda deployments | Open. Needs the backend setting above, then a check on the deployed site |
+| Deploy | Not done |
