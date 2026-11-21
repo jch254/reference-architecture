@@ -475,6 +475,12 @@
   margin-left: var(--space-ms);
 }
 
+/* A long host and its fact take a line each before either breaks. */
+.status {
+  flex-wrap: wrap;
+  row-gap: var(--space-xs);
+}
+
 /* The source in the footer, written as an address. */
 .site-footer-source {
   font-family: var(--font-mono);
@@ -611,7 +617,7 @@
 .baseline-field input {
   flex: 1 1 160px;
   min-width: 0;
-  min-height: 40px;
+  min-height: var(--control-h);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -753,8 +759,9 @@
   border-radius: var(--radius);
 }
 
-.row-hover:hover,
-.row-hover:focus-within {
+/* Hover fills the row. Keyboard focus does not: it has the ring, and a fill
+   without the node would read as a second selected row. */
+.row-hover:hover {
   background: var(--hover);
 }
 
@@ -867,6 +874,23 @@ kbd {
   overflow-wrap: anywhere;
 }
 
+/* A value with a copy button after it. The value wraps inside its own box,
+   so the button stays on the first line. */
+.with-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.with-copy > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.with-copy .icon-btn {
+  margin-block: -2px;
+}
+
 /* ----------------------------------------------------------------- toast */
 
 /* Namaste's toast: an ink fill at the foot of the window with one outlined
@@ -933,6 +957,12 @@ kbd {
 }
 
 @media (pointer: coarse), (max-width: 720px) {
+  /* The field is 44px here, so the row gives up 2px of padding each side
+     and keeps its height. */
+  .baseline-field {
+    padding-block: 6px;
+  }
+
   .toasts {
     right: var(--gutter);
     left: var(--gutter);
@@ -951,7 +981,9 @@ kbd {
 /* ------------------------------------------------------------------- tip */
 
 /* The exact value behind a rounded one, such as a timestamp. It takes the
-   toast's ink fill and shows on hover and on keyboard focus. */
+   toast's ink fill and shows while the pointer is on the value. Hover is not
+   the only way to it: the page also writes the exact value out wherever the
+   keyboard or a finger can reach. */
 .tip {
   position: relative;
 }
@@ -976,8 +1008,7 @@ kbd {
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
-.tip:hover::after,
-.tip-host:has(:focus-visible) .tip::after {
+.tip:hover::after {
   opacity: 1;
 }
 
@@ -992,11 +1023,6 @@ kbd {
 
   .site-switch {
     gap: 14px;
-  }
-
-  .status {
-    flex-wrap: wrap;
-    row-gap: var(--space-xs);
   }
 
   /* When the second fact wraps it lines up under the status, clear of the

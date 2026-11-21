@@ -1,35 +1,22 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 /**
  * The page ledger. A row is a mono margin that holds the one fact the list
- * is about, a name and one line of text. `margin` and `name` set the two
- * fixed columns in pixels. Below 980px the name and the text share the
- * second column.
+ * is about, a name and one line of text. The two fixed columns are set with
+ * --ledger-margin and --ledger-name on the list. Below 980px the name and the
+ * text share the second column.
  */
 export function Ledger({
   ordered = false,
-  margin,
-  name,
   className,
   children,
 }: {
   ordered?: boolean;
-  margin?: number;
-  name?: number;
   className?: string;
   children: ReactNode;
 }) {
   const List = ordered ? 'ol' : 'ul';
-  const style = {
-    ...(margin !== undefined && { '--ledger-margin': `${margin}px` }),
-    ...(name !== undefined && { '--ledger-name': `${name}px` }),
-  } as CSSProperties;
-
-  return (
-    <List className={['ledger', className].filter(Boolean).join(' ')} style={style}>
-      {children}
-    </List>
-  );
+  return <List className={['ledger', className].filter(Boolean).join(' ')}>{children}</List>;
 }
 
 export function LedgerRow({

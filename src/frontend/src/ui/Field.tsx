@@ -46,7 +46,7 @@ export function Baseline({
   );
 
   return onSubmit ? (
-    <form className="baseline" onSubmit={onSubmit} noValidate>
+    <form className="baseline" onSubmit={onSubmit}>
       {content}
     </form>
   ) : (

@@ -1,39 +1,22 @@
 import { Auth0Provider } from '@auth0/auth0-react';
 import { useEffect, useState } from 'react';
 
-import './App.css';
 import { App } from './App';
-import { AppHeader } from './AppHeader';
-import { AppFooter } from './AppFooter';
 import { OidcApp } from './auth/OidcApp';
+import { LoadingPage } from './demo/DemoShell';
+import { MissingAuth0 } from './demo/NoSignIn';
+import { SignedOutPage } from './demo/SignedOutPage';
+import { LOADING } from './demo/demo-copy';
 import { fetchRuntimeConfig, type RuntimeConfig } from './runtime-config';
-
-function Shell({
-  authProvider = 'internal_magic_link',
-  compute,
-  children,
-}: {
-  authProvider?: RuntimeConfig['authProvider'];
-  compute?: RuntimeConfig['compute'];
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="app-container">
-      <AppHeader authProvider={authProvider} compute={compute} />
-      <hr className="section-divider" />
-      {children}
-      <AppFooter />
-    </div>
-  );
-}
 
 /**
  * Picks the auth experience from the deployment's public runtime config so the
  * same bundle works everywhere:
  *  - oidc + Auth0 SPA settings → Auth0 login/logout via <OidcApp>
- *  - none / internal_magic_link → existing <App> (unchanged behaviour)
+ *  - none / internal_magic_link → <App>
  * If the config request fails we fall back to <App> so a transient outage can
- * never break the existing non-OIDC demo.
+ * never break the non-OIDC demo. <App> is told there is no config, and the
+ * page's readout says so.
  */
 export function Root() {
   const [cfg, setCfg] = useState<RuntimeConfig | null>(null);
@@ -43,25 +26,16 @@ export function Root() {
     fetchRuntimeConfig().then(setCfg).catch(() => setFailed(true));
   }, []);
 
-  if (failed) return <App />;
+  if (failed) return <App config={null} />;
 
-  if (!cfg) {
-    return (
-      <Shell>
-        <p className="muted-text">Loading…</p>
-      </Shell>
-    );
-  }
+  if (!cfg) return <LoadingPage fact={LOADING.config} />;
 
   if (cfg.authProvider === 'oidc') {
     if (!cfg.auth0) {
       return (
-        <Shell authProvider={cfg.authProvider} compute={cfg.compute}>
-          <p className="error-message">
-            This deployment is configured for OIDC login but is missing Auth0
-            SPA settings. Set AUTH0_SPA_CLIENT_ID for this deployment.
-          </p>
-        </Shell>
+        <SignedOutPage config={cfg}>
+          <MissingAuth0 />
+        </SignedOutPage>
       );
     }
 
@@ -76,11 +50,10 @@ export function Root() {
           window.history.replaceState({}, '', window.location.pathname)
         }
       >
-        <OidcApp compute={cfg.compute} />
+        <OidcApp config={cfg} />
       </Auth0Provider>
     );
   }
 
-  // none / internal_magic_link → existing demo behaviour, untouched.
-  return <App authProvider={cfg.authProvider} compute={cfg.compute} />;
+  return <App config={cfg} />;
 }
